@@ -1,0 +1,8 @@
+{
+  "name": "Alat Ajar Akademik",
+  "description": "Sistem Administrasi Guru terintegrasi dengan Google Apps Script dan AI Assistant untuk Rencana Pelaksanaan Pembelajaran (RPP), Lembar Kerja Peserta Didik (LKPD), dan Asesmen.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

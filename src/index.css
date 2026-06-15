@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-150: #a7f3d0;
+  --color-teal-200: #99f6e4;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-650: #0f766e;
+  --color-teal-700: #0f766e;
+  --color-teal-750: #115e59;
+  --color-teal-800: #115e59;
+  --color-teal-850: #134e4a;
+  --color-emerald-25: #f4fbf7;
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-150: #a7f3d0;
+  --color-emerald-200: #a7f3d5;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-950: #022c22;
+  
+  --color-gray-25: #fcfcfd;
+}
+
+/* Custom styling to improve Glassmorphism appearance across browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+body {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+/* Base custom interactive states */
+.scale-active {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.scale-active:active {
+  transform: scale(0.97);
+}
+
