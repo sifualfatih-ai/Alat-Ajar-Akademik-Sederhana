@@ -556,7 +556,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[#0f172a] text-white font-sans relative overflow-hidden" id="app-root-container">
+    <div className="flex flex-col md:flex-row h-[100dvh] bg-[#0f172a] text-white font-sans relative overflow-hidden" id="app-root-container">
       {/* Mesh Gradient Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none z-0"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/15 rounded-full blur-[130px] pointer-events-none z-0"></div>
@@ -593,7 +593,7 @@ export default function App() {
         </div>
 
         {/* Content viewport area */}
-        <div className="flex-grow p-6 overflow-y-auto max-h-[calc(100vh-48px)] lg:max-h-screen flex flex-col justify-between" id="viewport-view">
+        <div className="flex-grow p-6 overflow-y-auto min-h-0 flex flex-col justify-between" id="viewport-view">
           <div className="w-full">
             {renderActiveView()}
           </div>
