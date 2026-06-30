@@ -8,7 +8,9 @@ import AgendaView from "./components/AgendaView";
 import BimbinganView from "./components/BimbinganView";
 import DownloadView from "./components/DownloadView";
 import AdminView from "./components/AdminView";
+import LoginView from "./components/LoginView";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import DataSiswaView from "./components/DataSiswaView";
 import { 
   Student, 
   ClassInfo, 
@@ -33,41 +35,19 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 
 // Real-world Indonesian student roster (representing SMP N 3 Siberut)
-const SEEDED_STUDENTS: Student[] = [
-  { id: "st-01", name: "Ahmad Samallo", gender: "L" },
-  { id: "st-02", name: "Bernadus Saleleubaja", gender: "L" },
-  { id: "st-03", name: "Carolina Sakerebau", gender: "P" },
-  { id: "st-04", name: "Darius Salakkopak", gender: "L" },
-  { id: "st-05", name: "Elizabet Siritoitet", gender: "P" },
-  { id: "st-06", name: "Fransiscus Saerejen", gender: "L" },
-  { id: "st-07", name: "Grace Sababalat", gender: "P" },
-  { id: "st-08", name: "Hendrikus Samangilailai", gender: "L" },
-  { id: "st-09", name: "Irene Saruruk", gender: "P" },
-  { id: "st-10", name: "Julius Salamanang", gender: "L" },
-  { id: "st-11", name: "Kristina Tasiripoula", gender: "P" },
-  { id: "st-12", name: "Martinus Sagurung", gender: "L" },
-  { id: "st-13", name: "Natalia Silaing", gender: "P" },
-  { id: "st-14", name: "Patrisius Sikeru", gender: "L" },
-  { id: "st-15", name: "Ronaldi Saibi", gender: "L" }
-];
+const SEEDED_STUDENTS: Student[] = [];
 
-const SEEDED_CLASSES: ClassInfo[] = [
-  { id: "VII-A", name: "Kelas VII-A", major: "Kurikulum Merdeka" },
-  { id: "VIII-A", name: "Kelas VIII-A", major: "Kurikulum Merdeka" },
-  { id: "IX-A", name: "Kelas IX-A", major: "K-13 Terpadu" }
-];
+const SEEDED_CLASSES: ClassInfo[] = [];
 
-const SEEDED_SCHEDULE: ScheduleItem[] = [
-  { id: "sch-1", day: "Senin", time: "07:30 - 09:00", classId: "VIII-A", subject: "Ilmu Pengetahuan Alam (IPA)", room: "Laboratorium IPA" },
-  { id: "sch-2", day: "Senin", time: "09:15 - 10:45", classId: "VII-A", subject: "Ilmu Pengetahuan Alam (IPA)", room: "R. Kelas VII-A" },
-  { id: "sch-3", day: "Selasa", time: "07:30 - 09:00", classId: "IX-A", subject: "Fisika & Biologi (IPA)", room: "Laboratorium IPA" },
-  { id: "sch-4", day: "Rabu", time: "11:00 - 12:30", classId: "VII-A", subject: "Ilmu Pengetahuan Alam (IPA)", room: "R. Kelas VII-A" },
-  { id: "sch-5", day: "Kamis", time: "07:30 - 09:00", classId: "VIII-A", subject: "Ilmu Pengetahuan Alam (IPA)", room: "Laboratorium IPA" },
-  { id: "sch-6", day: "Jumat", time: "09:15 - 10:45", classId: "IX-A", subject: "Kajian Alam (IPA)", room: "R. Kelas IX-A" }
-];
+const SEEDED_SCHEDULE: ScheduleItem[] = [];
 
 export default function App() {
   const [currentView, setCurrentView] = useState<string>("Dashboard");
+  
+  // Auth State
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    return localStorage.getItem("sg_auth_token");
+  });
 
   // School Profile Attr settings
   const [settings, setSettings] = useState<SchoolSettings>(() => {
@@ -80,9 +60,10 @@ export default function App() {
       }
     }
     return {
-      logo: "SIASAT GURU",
+      logo: "GURU DIGITAL INDONESIA",
       schoolName: "PAUD PC Persis Coblong",
       teacherName: "Guru Indonensia",
+      subject: "Pendidikan Agama",
       dashboardTitle: "Selamat Datang, Guru Indonensia",
       description: "Sistem Administrasi Guru",
       address: "Jalan Sadang Luhur No. 1 F Bandung 40134"
@@ -90,8 +71,14 @@ export default function App() {
   });
   
   // App States
-  const [students] = useState<Student[]>(SEEDED_STUDENTS);
-  const [classes] = useState<ClassInfo[]>(SEEDED_CLASSES);
+  const [students, setStudents] = useState<Student[]>(() => {
+    const saved = localStorage.getItem("sg_students");
+    return saved ? JSON.parse(saved) : SEEDED_STUDENTS;
+  });
+  const classes: ClassInfo[] = React.useMemo(() => {
+    const uniqueClassIds = Array.from(new Set(students.map(s => s.classId).filter(Boolean))) as string[];
+    return uniqueClassIds.map(id => ({ id, name: id, major: "Umum" })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [students]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>(() => {
     const saved = localStorage.getItem("sg_schedule");
     return saved ? JSON.parse(saved) : SEEDED_SCHEDULE;
@@ -120,12 +107,24 @@ export default function App() {
   // Connection & sync state with AppScript
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [pendingSyncTasks, setPendingSyncTasks] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("sg_pending_sync");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   
   // Modals view controllers
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showIntegrasiInfo, setShowIntegrasiInfo] = useState(false);
 
   // Sync state variables across sessions
+  useEffect(() => {
+    localStorage.setItem("sg_students", JSON.stringify(students));
+  }, [students]);
+
   useEffect(() => {
     localStorage.setItem("sg_schedule", JSON.stringify(schedule));
   }, [schedule]);
@@ -147,8 +146,92 @@ export default function App() {
   }, [bimbinganRecords]);
 
   useEffect(() => {
+    if (authToken) {
+      localStorage.setItem("sg_auth_token", authToken);
+    } else {
+      localStorage.removeItem("sg_auth_token");
+    }
+  }, [authToken]);
+
+  useEffect(() => {
     localStorage.setItem("sg_school_settings", JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    localStorage.setItem("sg_pending_sync", JSON.stringify(pendingSyncTasks));
+  }, [pendingSyncTasks]);
+
+  const handleProcessPendingSync = async (tasks: any[]) => {
+    setIsSyncing(true);
+    let successCount = 0;
+    const remainingTasks = [];
+    
+    for (const task of tasks) {
+      try {
+        const res = await fetch("/api/appscript", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            action: task.action, 
+            data: task.payload,
+            teacherName: settings.teacherName
+          })
+        });
+        const parsed = await res.json();
+        if (parsed.success) {
+          successCount++;
+        } else {
+          remainingTasks.push(task);
+        }
+      } catch (err) {
+        remainingTasks.push(task);
+      }
+    }
+    
+    setPendingSyncTasks(remainingTasks);
+    setIsSyncing(false);
+    
+    if (successCount > 0) {
+      alert(`Sinkronisasi berhasil! ${successCount} data offline telah dikirim.`);
+    }
+  };
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsConnected(true);
+      const saved = localStorage.getItem("sg_pending_sync");
+      if (saved) {
+        try {
+          const tasks = JSON.parse(saved);
+          if (tasks && tasks.length > 0) {
+            if (window.confirm(`Anda kembali online! Terdapat ${tasks.length} data absensi/penilaian yang belum tersinkron. Sinkronisasi sekarang?`)) {
+              handleProcessPendingSync(tasks);
+            }
+          }
+        } catch(e) {}
+      }
+    };
+    
+    const handleOffline = () => {
+      setIsConnected(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'NETWORK_ONLINE') {
+        handleOnline();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    };
+  }, [settings.teacherName]);
 
   // Test Apps Script Connectivity on load
   useEffect(() => {
@@ -169,18 +252,42 @@ export default function App() {
   }, []);
 
   // Post Proxy forwarder to Google Apps Script
-  const postToAppsScript = async (action: string, payload: any): Promise<boolean> => {
+  const postToAppsScript = async (action: string, payload: any): Promise<any> => {
+    if (!navigator.onLine) {
+       setPendingSyncTasks(prev => [...prev, { action, payload, timestamp: Date.now() }]);
+       return { success: true, message: "Offline - Tersimpan secara lokal dalam antrean", offline: true };
+    }
+
     try {
       const res = await fetch("/api/appscript", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, data: payload })
+        body: JSON.stringify({ 
+          action, 
+          data: payload,
+          teacherName: settings.teacherName
+        })
       });
       const parsed = await res.json();
-      return parsed.success;
+      if (parsed.success && parsed.data) {
+        return parsed.data;
+      }
+      return parsed;
     } catch (err) {
       console.error(`Apps Script Error for action ${action}:`, err);
-      return false;
+      if (err instanceof Error && (err.message.includes("Failed to fetch") || err.message.includes("Network error") || err.message.includes("fetch"))) {
+        setPendingSyncTasks(prev => [...prev, { action, payload, timestamp: Date.now() }]);
+        
+        // Register background sync task with Service Worker
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+          navigator.serviceWorker.ready.then(registration => {
+            registration.sync.register('sync-apps-script').catch(console.error);
+          });
+        }
+        
+        return { success: true, message: "Jaringan error - Tersimpan ke dalam antrean sinkronisasi", offline: true };
+      }
+      return { success: false, error: err instanceof Error ? err.message : "Network error" };
     }
   };
 
@@ -199,7 +306,7 @@ export default function App() {
       ];
 
       const results = await Promise.all(syncTasks);
-      const allSucceeded = results.every(r => r === true);
+      const allSucceeded = results.every(r => r?.success === true);
       setIsConnected(allSucceeded);
       
       alert(allSucceeded 
@@ -230,7 +337,8 @@ export default function App() {
     setAttendanceRecords(prev => [newRecord, ...prev]);
 
     // Send immediately to Apps Script database
-    return await postToAppsScript("submitAbsensi", newRecord);
+    const result = await postToAppsScript("submitAbsensi", newRecord);
+    return result?.success === true;
   };
 
   const handleSaveGrades = async (classId: string, subject: string, grades: GradeItem[]): Promise<boolean> => {
@@ -243,7 +351,8 @@ export default function App() {
     };
 
     setGradeRecords(prev => [newRecord, ...prev]);
-    return await postToAppsScript("submitPenilaian", newRecord);
+    const result = await postToAppsScript("submitPenilaian", newRecord);
+    return result?.success === true;
   };
 
   const handleSaveAgenda = async (agenda: Omit<AgendaRecord, 'id' | 'submittedAt'>): Promise<boolean> => {
@@ -254,7 +363,8 @@ export default function App() {
     };
 
     setAgendaRecords(prev => [newRecord, ...prev]);
-    return await postToAppsScript("submitAgenda", newRecord);
+    const result = await postToAppsScript("submitAgenda", newRecord);
+    return result?.success === true;
   };
 
   const handleSaveBimbingan = async (record: Omit<BimbinganRecord, 'id' | 'submittedAt'>): Promise<boolean> => {
@@ -265,7 +375,8 @@ export default function App() {
     };
 
     setBimbinganRecords(prev => [newRecord, ...prev]);
-    return await postToAppsScript("submitBimbingan", newRecord);
+    const result = await postToAppsScript("submitBimbingan", newRecord);
+    return result?.success === true;
   };
 
   const handleAddSchedule = (itm: Omit<ScheduleItem, 'id'>) => {
@@ -283,9 +394,28 @@ export default function App() {
   // Mock Logout action
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
-    alert("Keluar dari Sesi Guru Sukses. Anda dapat masuk kembali kapan saja.");
+    setAuthToken(null);
     setCurrentView("Dashboard");
   };
+
+  if (!authToken) {
+    return (
+      <LoginView 
+        settings={settings}
+        onLoginSuccess={(token, userData) => {
+          setAuthToken(token);
+          if (userData) {
+            setSettings(prev => ({
+              ...prev,
+              schoolName: userData.namasekolah || prev.schoolName,
+              teacherName: userData.nama || prev.teacherName,
+            }));
+          }
+        }}
+        postToAppsScript={postToAppsScript}
+      />
+    );
+  }
 
   const renderActiveView = () => {
     switch (currentView) {
@@ -293,10 +423,12 @@ export default function App() {
         return (
           <DashboardView 
             onNavigate={setCurrentView}
-            stats={{ rombel: classes.length, guru: 2, siswa: students.length }}
+            stats={{ rombel: classes.length, siswa: students.length }}
             isSyncing={isSyncing}
             onSync={handleBulkSync}
             settings={settings}
+            attendanceRecords={attendanceRecords}
+            gradeRecords={gradeRecords}
           />
         );
       case "Absensi":
@@ -317,6 +449,7 @@ export default function App() {
             records={gradeRecords}
             onSave={handleSaveGrades}
             isSyncing={isSyncing}
+            teacherSubject={settings.subject}
           />
         );
       case "Jadwal":
@@ -326,6 +459,7 @@ export default function App() {
             classes={classes}
             onAddSchedule={handleAddSchedule}
             onDeleteSchedule={handleDeleteSchedule}
+            teacherSubject={settings.subject}
           />
         );
       case "Agenda":
@@ -351,6 +485,23 @@ export default function App() {
             settings={settings}
           />
         );
+      case "DataSiswa":
+        return (
+          <DataSiswaView 
+            students={students}
+            classes={classes}
+            attendanceRecords={attendanceRecords}
+            gradeRecords={gradeRecords}
+            onAddStudent={(newStudent) => {
+              if (Array.isArray(newStudent)) {
+                setStudents(prev => [...prev, ...newStudent]);
+              } else {
+                setStudents(prev => [...prev, newStudent]);
+              }
+            }}
+            onDeleteStudent={(id) => setStudents(prev => prev.filter(s => s.id !== id))}
+          />
+        );
       case "Admin":
         return (
           <AdminView 
@@ -358,9 +509,10 @@ export default function App() {
             onSaveSettings={setSettings}
             onResetSettings={() => {
               setSettings({
-                logo: "SIASAT GURU",
+                logo: "GURU DIGITAL INDONESIA",
                 schoolName: "PAUD PC Persis Coblong",
                 teacherName: "Guru Indonensia",
+                subject: "Pendidikan Agama",
                 dashboardTitle: "Selamat Datang, Guru Indonensia",
                 description: "Sistem Administrasi Guru",
                 address: "Jalan Sadang Luhur No. 1 F Bandung 40134"
@@ -392,7 +544,7 @@ export default function App() {
         {/* Top Header info toolbar */}
         <div className="backdrop-blur-md bg-white/5 border-b border-white/10 px-6 py-3 flex items-center justify-between shrink-0" id="info-toolbar">
           <div className="flex items-center gap-2 text-xs font-semibold text-white/40 font-mono uppercase tracking-wider">
-            <span>Siasat Guru</span>
+            <span>Guru Digital Indonesia</span>
             <span>/</span>
             <span className="text-white/80">{currentView}</span>
           </div>
@@ -407,29 +559,6 @@ export default function App() {
               <span className="hidden sm:inline text-white/80">Tentang Database</span>
             </button>
 
-            {/* Connection Status Pill badge */}
-            <div 
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xxs font-mono font-bold border transition-colors ${
-                isConnected === true 
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                  : isConnected === false 
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
-                  : 'bg-white/5 text-white/40 border-white/10'
-              }`}
-              id="conn-status-pill"
-            >
-              {isConnected === true ? (
-                <>
-                  <Wifi className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>Google Apps Script Terhubung</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span>Mode Offline / Disimpan Lokal</span>
-                </>
-              )}
-            </div>
           </div>
         </div>
 
@@ -525,6 +654,7 @@ export default function App() {
                   <pre className="p-3 bg-white/5 border border-white/10 rounded-lg text-xxs font-mono text-blue-300 overflow-x-auto leading-snug">
 {`{
   "action": "submitAbsensi",
+  "teacherName": "Guru Indonensia",
   "data": {
     "date": "2026-05-20",
     "classId": "VII-A",

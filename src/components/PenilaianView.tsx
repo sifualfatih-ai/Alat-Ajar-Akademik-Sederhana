@@ -6,9 +6,11 @@ import {
   CheckCircle, 
   AlertCircle,
   FileSpreadsheet,
-  Info
+  Info,
+  Download
 } from "lucide-react";
 import { Student, ClassInfo, GradeRecord, GradeItem } from "../types";
+import { exportToExcel, exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
 
 interface PenilaianViewProps {
@@ -17,11 +19,12 @@ interface PenilaianViewProps {
   records: GradeRecord[];
   onSave: (classId: string, subject: string, grades: GradeItem[]) => Promise<boolean>;
   isSyncing: boolean;
+  teacherSubject?: string;
 }
 
-export default function PenilaianView({ students, classes, records, onSave, isSyncing }: PenilaianViewProps) {
+export default function PenilaianView({ students, classes, records, onSave, isSyncing, teacherSubject }: PenilaianViewProps) {
   const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || "");
-  const [subject, setSubject] = useState<string>("Ilmu Pengetahuan Alam (IPA)");
+  const [subject, setSubject] = useState<string>(teacherSubject || "Ilmu Pengetahuan Alam (IPA)");
   const [gradesInput, setGradesInput] = useState<Record<string, { t1: number, t2: number, uts: number, uas: number }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -34,29 +37,25 @@ export default function PenilaianView({ students, classes, records, onSave, isSy
     "Pendidikan Pancasila (PPKn)"
   ];
 
-  // Distribute students by class identifier
   const getFilteredStudents = (): Student[] => {
-    if (selectedClass === "VII-A") {
-      return students.filter((_, idx) => idx % 2 === 0);
-    } else if (selectedClass === "VIII-A") {
-      return students.filter((_, idx) => idx % 3 === 0 || idx % 5 === 0);
-    } else {
-      return students.filter((_, idx) => idx % 2 !== 0);
-    }
+    return students.filter(s => s.classId === selectedClass);
   };
 
   const filteredStudents = getFilteredStudents();
 
   // Handle setting score in state
   const handleScoreChange = (studentId: string, field: 't1' | 't2' | 'uts' | 'uas', value: string) => {
-    const numeric = Math.min(100, Math.max(0, parseInt(value) || 0));
+    let numericValue = parseInt(value);
+    if (isNaN(numericValue)) return; // Allow empty initially or 0
+    const numeric = Math.min(100, Math.max(0, numericValue));
+    
     setGradesInput(prev => ({
       ...prev,
       [studentId]: {
-        t1: 75,
-        t2: 75,
-        uts: 75,
-        uas: 75,
+        t1: prev[studentId]?.t1 || 0,
+        t2: prev[studentId]?.t2 || 0,
+        uts: prev[studentId]?.uts || 0,
+        uas: prev[studentId]?.uas || 0,
         ...prev[studentId],
         [field]: numeric
       }
@@ -130,6 +129,53 @@ export default function PenilaianView({ students, classes, records, onSave, isSy
     }
   };
 
+  const handleExport = (format: 'xlsx' | 'csv' | 'pdf') => {
+    if (records.length === 0) {
+      alert("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const exportData = records.flatMap(rec => {
+      return rec.grades.map(g => {
+        const studentName = students.find(s => s.id === g.studentId)?.name || g.studentId;
+        const avg = Math.round((g.task1 + g.task2 + g.uts + g.uas) / 4);
+        return {
+          'Tanggal': rec.submittedAt.split(" ")[0],
+          'Kelas': rec.classId,
+          'Mata Pelajaran': rec.subject,
+          'Nama Siswa': studentName,
+          'Tugas 1': g.task1,
+          'Tugas 2': g.task2,
+          'UTS': g.uts,
+          'UAS': g.uas,
+          'Rata-rata': avg,
+          'Hasil': avg >= 75 ? 'LULUS' : 'REMEDIAL'
+        };
+      });
+    });
+
+    if (format === 'xlsx') {
+      exportToExcel(exportData, 'Laporan_Penilaian');
+    } else if (format === 'csv') {
+      exportToCSV(exportData, 'Laporan_Penilaian');
+    } else if (format === 'pdf') {
+      const headers = ['Tanggal', 'Kelas', 'Mapel', 'Siswa', 'T1', 'T2', 'UTS', 'UAS', 'Rata-rata', 'Hasil'];
+      const body = exportData.map(d => [
+        d.Tanggal,
+        d.Kelas,
+        d['Mata Pelajaran'],
+        d['Nama Siswa'],
+        d['Tugas 1'].toString(),
+        d['Tugas 2'].toString(),
+        d.UTS.toString(),
+        d.UAS.toString(),
+        d['Rata-rata'].toString(),
+        d.Hasil
+      ]);
+      exportToPDF(headers, body, 'Laporan_Penilaian', 'Laporan Leger Penilaian Siswa');
+    }
+  };
+
   return (
     <div className="space-y-6" id="penilaian-view-wrapper">
       <div>
@@ -185,18 +231,24 @@ export default function PenilaianView({ students, classes, records, onSave, isSy
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-white/40 font-mono uppercase tracking-wider">Mata Pelajaran</label>
-                <select
-                  value={subject}
-                  onChange={(e) => {
-                    setSubject(e.target.value);
-                    setGradesInput({});
-                  }}
-                  className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:bg-[#1e293b]/75 transition-colors font-sans"
-                >
-                  {subjects.map(sub => (
-                    <option key={sub} value={sub} className="bg-slate-900 text-white">{sub}</option>
-                  ))}
-                </select>
+                {teacherSubject ? (
+                  <div className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white/70 font-sans cursor-not-allowed">
+                    {teacherSubject}
+                  </div>
+                ) : (
+                  <select
+                    value={subject}
+                    onChange={(e) => {
+                      setSubject(e.target.value);
+                      setGradesInput({});
+                    }}
+                    className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:bg-[#1e293b]/75 transition-colors font-sans"
+                  >
+                    {subjects.map(sub => (
+                      <option key={sub} value={sub} className="bg-slate-900 text-white">{sub}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
@@ -338,9 +390,19 @@ max="100"
 
         {/* History of Grades uploads sidebar */}
         <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl h-fit space-y-4" id="grades-history-container">
-          <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1">
-            <FileSpreadsheet className="w-4 h-4 text-blue-400 animate-pulse" /> Daftar Unggahan
-          </h3>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1">
+              <FileSpreadsheet className="w-4 h-4 text-blue-400 animate-pulse" /> Daftar Unggahan
+            </h3>
+            {records.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xxs font-mono text-white/40 uppercase w-full mb-0.5">Export Laporan:</span>
+                <button onClick={() => handleExport('xlsx')} className="flex-1 text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
+                <button onClick={() => handleExport('csv')} className="flex-1 text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> CSV</button>
+                <button onClick={() => handleExport('pdf')} className="flex-1 text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
             {records.length === 0 ? (

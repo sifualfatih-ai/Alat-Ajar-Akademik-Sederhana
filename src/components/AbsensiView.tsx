@@ -7,9 +7,11 @@ import {
   Clock,
   Send,
   Sparkles,
-  Info
+  Info,
+  Download
 } from "lucide-react";
 import { Student, ClassInfo, AttendanceRecord, AttendanceStatus } from "../types";
+import { exportToExcel, exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
 
 interface AbsensiViewProps {
@@ -103,6 +105,44 @@ export default function AbsensiView({ students, classes, records, onSave, isSync
     return { h, s, i, a, total: rec.students.length };
   };
 
+  const handleExport = (format: 'xlsx' | 'csv' | 'pdf') => {
+    if (records.length === 0) {
+      alert("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const exportData = records.map(rec => {
+      const stats = getRecordStats(rec);
+      return {
+        Tanggal: rec.date,
+        Kelas: rec.classId,
+        Hadir: stats.h,
+        Sakit: stats.s,
+        Izin: stats.i,
+        Alpa: stats.a,
+        'Total Siswa': stats.total
+      };
+    });
+
+    if (format === 'xlsx') {
+      exportToExcel(exportData, 'Laporan_Absensi');
+    } else if (format === 'csv') {
+      exportToCSV(exportData, 'Laporan_Absensi');
+    } else if (format === 'pdf') {
+      const headers = ['Tanggal', 'Kelas', 'Hadir', 'Sakit', 'Izin', 'Alpa', 'Total Siswa'];
+      const body = exportData.map(d => [
+        d.Tanggal,
+        d.Kelas,
+        d.Hadir.toString(),
+        d.Sakit.toString(),
+        d.Izin.toString(),
+        d.Alpa.toString(),
+        d['Total Siswa'].toString()
+      ]);
+      exportToPDF(headers, body, 'Laporan_Absensi', 'Laporan Rekap Absensi Siswa');
+    }
+  };
+
   return (
     <div className="space-y-6" id="absensi-view-wrapper">
       <div>
@@ -167,6 +207,7 @@ export default function AbsensiView({ students, classes, records, onSave, isSync
                 <div className="relative">
                   <input
                     type="date"
+                    min={new Date().toISOString().split('T')[0]}
                     value={attendanceDate}
                     onChange={(e) => setAttendanceDate(e.target.value)}
                     className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl pl-9.5 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:bg-[#1e293b]/75 transition-colors font-sans dark:[color-scheme:dark]"
@@ -288,11 +329,21 @@ export default function AbsensiView({ students, classes, records, onSave, isSync
 
         {/* Riwayat Absensi */}
         <div className="backdrop-blur-md bg-white/5 rounded-2xl border border-white/10 p-6 shadow-xl space-y-4 h-fit" id="absensi-history-container">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-blue-400" /> Riwayat Rekaman
-            </h3>
-            <span className="text-xxs px-2 py-0.5 bg-white/5 text-white/50 rounded border border-white/5 font-mono font-semibold">Terkini</span>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-blue-400" /> Riwayat Rekaman
+              </h3>
+              <span className="text-xxs px-2 py-0.5 bg-white/5 text-white/50 rounded border border-white/5 font-mono font-semibold">Terkini</span>
+            </div>
+            {records.length > 0 && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <span className="text-xxs font-mono text-white/40 uppercase">Export:</span>
+                <button onClick={() => handleExport('xlsx')} className="text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
+                <button onClick={() => handleExport('csv')} className="text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
+                <button onClick={() => handleExport('pdf')} className="text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1" id="history-scroller">

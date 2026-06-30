@@ -16,13 +16,14 @@ interface JadwalViewProps {
   classes: ClassInfo[];
   onAddSchedule: (item: Omit<ScheduleItem, 'id'>) => void;
   onDeleteSchedule: (id: string) => void;
+  teacherSubject?: string;
 }
 
-export default function JadwalView({ schedule, classes, onAddSchedule, onDeleteSchedule }: JadwalViewProps) {
+export default function JadwalView({ schedule, classes, onAddSchedule, onDeleteSchedule, teacherSubject }: JadwalViewProps) {
   const [day, setDay] = useState<string>("Senin");
   const [time, setTime] = useState<string>("07:30 - 09:00");
   const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || "");
-  const [subject, setSubject] = useState<string>("Ilmu Pengetahuan Alam (IPA)");
+  const [subject, setSubject] = useState<string>(teacherSubject || "Ilmu Pengetahuan Alam (IPA)");
   const [room, setRoom] = useState<string>("Laboratorium IPA");
   
   const [showAddForm, setShowAddForm] = useState(false);
@@ -134,14 +135,20 @@ export default function JadwalView({ schedule, classes, onAddSchedule, onDeleteS
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-white/40 font-mono uppercase">Mata Pelajaran</label>
-                <input
-                  type="text"
-                  required
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. Ilmu Pengetahuan Alam (IPA)"
-                  className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans"
-                />
+                {teacherSubject ? (
+                  <div className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white/70 font-sans cursor-not-allowed">
+                    {teacherSubject}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    required
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g. Ilmu Pengetahuan Alam (IPA)"
+                    className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans"
+                  />
+                )}
               </div>
             </div>
 

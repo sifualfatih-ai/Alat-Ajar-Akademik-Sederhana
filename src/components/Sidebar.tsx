@@ -10,7 +10,8 @@ import {
   LogOut,
   Menu,
   X,
-  Settings
+  Settings,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SchoolSettings } from "../types";
@@ -27,12 +28,13 @@ export default function Sidebar({ currentView, onNavigate, onLogout, settings }:
 
   const menuItems = [
     { view: "Dashboard", label: "Dashboard", icon: Home },
+    { view: "DataSiswa", label: "Data Siswa", icon: Users },
     { view: "Absensi", label: "Absensi", icon: ClipboardCheck },
     { view: "Penilaian", label: "Penilaian", icon: Star },
     { view: "Jadwal", label: "Jadwal Mengajar", icon: Clock },
     { view: "Agenda", label: "Jurnal Agenda", icon: NotebookPen },
     { view: "Bimbingan", label: "Bimbingan Wali", icon: HeartHandshake },
-    { view: "Download", label: "Perangkat Ajar", icon: Download },
+    { view: "Download", label: "Berbagi Dokumen Ajar", icon: Download },
     { view: "Admin", label: "Pengaturan Admin", icon: Settings }
   ];
 
@@ -103,14 +105,6 @@ export default function Sidebar({ currentView, onNavigate, onLogout, settings }:
                       <Icon className="w-4 h-4 shrink-0" />
                       <span>{item.label}</span>
                     </div>
-
-                    {item.isNew && (
-                      <span className={`px-1.5 py-0.5 rounded text-xxs font-bold uppercase ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-gradient-to-r from-blue-600 to-purple-650 text-white animate-pulse'
-                      }`}>
-                        AI
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -156,8 +150,12 @@ export default function Sidebar({ currentView, onNavigate, onLogout, settings }:
             <h3 className="text-xs font-bold text-white font-sans truncate tracking-tight m-0" title={settings.teacherName}>
               {settings.teacherName}
             </h3>
-            <p className="text-xxs text-blue-400 font-mono font-medium truncate uppercase tracking-widest leading-none m-0">
-              Guru Mata Pelajaran
+            <p 
+              className="text-xs text-blue-400 truncate uppercase tracking-widest leading-none m-0"
+              style={{ fontFamily: "'Segoe UI', sans-serif", fontWeight: 400 }}
+              title={settings.subject || "Guru Mata Pelajaran"}
+            >
+              {settings.subject || "Guru Mata Pelajaran"}
             </p>
           </div>
         </div>
@@ -181,14 +179,6 @@ export default function Sidebar({ currentView, onNavigate, onLogout, settings }:
                   <Icon className={`w-4 h-4 shrink-0 transition-transform ${isActive ? 'scale-110 text-blue-400' : 'text-white/60'}`} />
                   <span className="text-xs font-sans font-semibold tracking-wide">{item.label}</span>
                 </div>
-
-                {item.isNew && (
-                  <span className={`px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider scale-95 ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white font-mono animate-pulse'
-                  }`}>
-                    AI
-                  </span>
-                )}
               </button>
             );
           })}

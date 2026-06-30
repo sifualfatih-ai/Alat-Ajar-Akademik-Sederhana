@@ -58,3 +58,16 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Background Sync Listener
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-apps-script') {
+    event.waitUntil(
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'NETWORK_ONLINE' });
+        });
+      })
+    );
+  }
+});

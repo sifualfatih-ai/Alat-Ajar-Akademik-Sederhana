@@ -7,9 +7,11 @@ import {
   CheckCircle, 
   BookOpen,
   Calendar,
-  MessageSquareDiff
+  MessageSquareDiff,
+  Download
 } from "lucide-react";
 import { Student, ClassInfo, BimbinganRecord } from "../types";
+import { exportToExcel, exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
 
 interface BimbinganViewProps {
@@ -57,6 +59,39 @@ export default function BimbinganView({ students, classes, records, onAddRecord 
 
   const getStudentName = (id: string) => {
     return students.find(s => s.id === id)?.name || id;
+  };
+
+  const handleExport = (format: 'xlsx' | 'csv' | 'pdf') => {
+    if (records.length === 0) {
+      alert("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const exportData = records.map(rec => ({
+      'Tanggal': rec.date,
+      'Siswa': getStudentName(rec.studentId),
+      'Kelas': rec.classId,
+      'Kategori': rec.category,
+      'Catatan Kasus': rec.issue,
+      'Solusi / Tindak Lanjut': rec.solution
+    }));
+
+    if (format === 'xlsx') {
+      exportToExcel(exportData, 'Laporan_Bimbingan_Konseling');
+    } else if (format === 'csv') {
+      exportToCSV(exportData, 'Laporan_Bimbingan_Konseling');
+    } else if (format === 'pdf') {
+      const headers = ['Tanggal', 'Siswa', 'Kelas', 'Kategori', 'Kasus', 'Tindak Lanjut'];
+      const body = exportData.map(d => [
+        d.Tanggal,
+        d.Siswa,
+        d.Kelas,
+        d.Kategori,
+        d['Catatan Kasus'],
+        d['Solusi / Tindak Lanjut']
+      ]);
+      exportToPDF(headers, body, 'Laporan_Bimbingan_Konseling', 'Laporan Jurnal Bimbingan & Konseling');
+    }
   };
 
   return (
@@ -134,6 +169,7 @@ export default function BimbinganView({ students, classes, records, onAddRecord 
                   <input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl pl-9.5 pr-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans dark:[color-scheme:dark]"
@@ -182,9 +218,19 @@ export default function BimbinganView({ students, classes, records, onAddRecord 
 
         {/* Counseling history feed */}
         <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-5 shadow-xl space-y-4 h-fit text-white" id="bimbingan-feed-container">
-          <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1.5">
-            <BookOpen className="w-4 h-4 text-blue-400" /> Log Kasus & Konseling
-          </h3>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-blue-400" /> Log Kasus & Konseling
+            </h3>
+            {records.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xxs font-mono text-white/40 uppercase w-full mb-0.5">Export Laporan:</span>
+                <button onClick={() => handleExport('xlsx')} className="flex-1 text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
+                <button onClick={() => handleExport('csv')} className="flex-1 text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> CSV</button>
+                <button onClick={() => handleExport('pdf')} className="flex-1 text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1" id="bimbingan-scroller">
             {records.length === 0 ? (

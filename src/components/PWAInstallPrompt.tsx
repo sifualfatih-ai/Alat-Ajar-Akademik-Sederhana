@@ -59,7 +59,7 @@ export default function PWAInstallPrompt() {
                <Download size={24} className="text-white" />
             </div>
             <div>
-              <h4 className="text-slate-100 font-semibold text-sm">Install Siasat Guru</h4>
+              <h4 className="text-slate-100 font-semibold text-sm">Install Guru Digital Indonesia</h4>
               <p className="text-slate-400 text-xs">Simpan aplikasi ke perangkat agar dapat diakses offline & lebih cepat.</p>
             </div>
           </div>

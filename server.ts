@@ -10,7 +10,7 @@ const PORT = 3000;
 
 app.use(express.json());
 
-const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || "";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
 
 // 1. Google Apps Script Proxy Endpoint
 app.post("/api/appscript", async (req, res) => {

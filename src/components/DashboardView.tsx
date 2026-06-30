@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { 
   Users, 
   Presentation, 
@@ -10,25 +10,82 @@ import {
   Bot, 
   Download, 
   MapPin,
-  RefreshCw
+  RefreshCw,
+  TrendingUp,
+  BarChart2
 } from "lucide-react";
 import { motion } from "motion/react";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line
+} from 'recharts';
 
-import { SchoolSettings } from "../types";
+import { SchoolSettings, AttendanceRecord, GradeRecord } from "../types";
 
 interface DashboardViewProps {
   onNavigate: (view: string) => void;
   stats: {
     rombel: number;
-    guru: number;
     siswa: number;
   };
   isSyncing: boolean;
   onSync: () => void;
   settings: SchoolSettings;
+  attendanceRecords: AttendanceRecord[];
+  gradeRecords: GradeRecord[];
 }
 
-export default function DashboardView({ onNavigate, stats, isSyncing, onSync, settings }: DashboardViewProps) {
+export default function DashboardView({ 
+  onNavigate, 
+  stats, 
+  isSyncing, 
+  onSync, 
+  settings, 
+  attendanceRecords, 
+  gradeRecords 
+}: DashboardViewProps) {
+
+  const attendanceStats = useMemo(() => {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+    const monthMap: Record<string, { present: number, total: number }> = {};
+    
+    attendanceRecords.forEach(record => {
+      const d = new Date(record.date);
+      if (isNaN(d.getTime())) return;
+      const monthStr = monthNames[d.getMonth()] + ' ' + d.getFullYear().toString().substring(2);
+      
+      if (!monthMap[monthStr]) monthMap[monthStr] = { present: 0, total: 0 };
+      
+      record.students.forEach(s => {
+        if (s.status === 'H') monthMap[monthStr].present += 1;
+        monthMap[monthStr].total += 1;
+      });
+    });
+    
+    return Object.keys(monthMap).map(m => ({
+      name: m,
+      persentase: Math.round((monthMap[m].present / monthMap[m].total) * 100)
+    }));
+  }, [attendanceRecords]);
+
+  const averageGrades = useMemo(() => {
+    const subjectMap: Record<string, { total: number, count: number }> = {};
+    gradeRecords.forEach(record => {
+      if (!subjectMap[record.subject]) subjectMap[record.subject] = { total: 0, count: 0 };
+      
+      record.grades.forEach(grade => {
+        const avgGrade = (Number(grade.task1) + Number(grade.task2) + Number(grade.uts) + Number(grade.uas)) / 4;
+        subjectMap[record.subject].total += avgGrade;
+        subjectMap[record.subject].count += 1;
+      });
+    });
+    
+    return Object.keys(subjectMap).map(subject => ({
+      name: subject,
+      rataRata: Math.round(subjectMap[subject].total / subjectMap[subject].count)
+    }));
+  }, [gradeRecords]);
+
   return (
     <div className="space-y-6" id="dashboard-view">
       {/* Welcome Banner */}
@@ -48,7 +105,10 @@ export default function DashboardView({ onNavigate, stats, isSyncing, onSync, se
               {settings.dashboardTitle}
             </h1>
             <div className="space-y-1">
-              <p className="text-blue-400 font-mono text-xs uppercase tracking-widest font-semibold">
+              <p 
+                className="text-blue-400 text-xs uppercase tracking-widest"
+                style={{ fontFamily: "'Segoe UI', sans-serif", fontWeight: 400 }}
+              >
                 {settings.description}
               </p>
               <h2 className="text-lg md:text-xl font-sans font-semibold text-white/90">
@@ -90,21 +150,6 @@ export default function DashboardView({ onNavigate, stats, isSyncing, onSync, se
           </div>
         </motion.div>
 
-        {/* GURU STAT CARD */}
-        <motion.div 
-          whileHover={{ y: -4 }}
-          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg flex items-center gap-4 transition-all"
-          id="stat-box-guru"
-        >
-          <div className="p-3 bg-orange-500/15 text-orange-300 rounded-xl shrink-0 border border-orange-500/20">
-            <Presentation className="w-6 h-6" />
-          </div>
-          <div className="space-y-0.5">
-            <p className="text-xs text-white/40 font-mono font-semibold uppercase tracking-wider">Guru</p>
-            <p className="text-2xl font-bold text-white font-sans tracking-tight">{stats.guru}</p>
-          </div>
-        </motion.div>
-
         {/* SISWA STAT CARD */}
         <motion.div 
           whileHover={{ y: -4 }}
@@ -117,6 +162,80 @@ export default function DashboardView({ onNavigate, stats, isSyncing, onSync, se
           <div className="space-y-0.5">
             <p className="text-xs text-white/40 font-mono font-semibold uppercase tracking-wider">Siswa</p>
             <p className="text-2xl font-bold text-white font-sans tracking-tight">{stats.siswa}</p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Visualisasi Data Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="charts-grid">
+        <motion.div 
+          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg"
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-emerald-500/15 text-emerald-400 rounded-lg border border-emerald-500/20">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white font-sans tracking-tight">Tren Kehadiran</h3>
+              <p className="text-xs text-white/50">Persentase kehadiran bulanan siswa</p>
+            </div>
+          </div>
+          
+          <div className="h-56 w-full">
+            {attendanceStats.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={attendanceStats} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" vertical={false} />
+                  <XAxis dataKey="name" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
+                    itemStyle={{ color: '#34d399' }}
+                  />
+                  <Line type="monotone" dataKey="persentase" name="Kehadiran (%)" stroke="#34d399" strokeWidth={3} dot={{ fill: '#34d399', strokeWidth: 2, r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-white/40">
+                Belum ada data absensi
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div 
+          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg"
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-purple-500/15 text-purple-400 rounded-lg border border-purple-500/20">
+              <BarChart2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white font-sans tracking-tight">Rata-rata Nilai</h3>
+              <p className="text-xs text-white/50">Nilai rata-rata per mata pelajaran</p>
+            </div>
+          </div>
+          
+          <div className="h-56 w-full">
+            {averageGrades.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={averageGrades} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff15" vertical={false} />
+                  <XAxis dataKey="name" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
+                    itemStyle={{ color: '#a855f7' }}
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  />
+                  <Bar dataKey="rataRata" name="Nilai" fill="#a855f7" radius={[4, 4, 0, 0]} barSize={32} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-white/40">
+                Belum ada data nilai
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
@@ -205,28 +324,6 @@ export default function DashboardView({ onNavigate, stats, isSyncing, onSync, se
             <div className="space-y-0.5">
               <p className="text-xs text-white/40 font-mono font-bold uppercase tracking-wider">Guru Wali</p>
               <p className="text-sm font-sans font-semibold text-white/90 group-hover:text-blue-400 transition-colors">Bimbingan Siswa</p>
-            </div>
-          </motion.button>
-
-          {/* GENERATOR AI CARD */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onNavigate("AIGenerator")}
-            className="group text-left backdrop-blur-md bg-white/5 p-4 rounded-xl border border-white/10 hover:border-blue-500/30 hover:bg-white/10 transition-all flex items-center gap-4 cursor-pointer"
-            id="quick-ai"
-          >
-            <div className="p-3 bg-blue-500/10 text-blue-300 rounded-xl group-hover:bg-blue-500/20 transition-colors relative border border-blue-500/20">
-              <Bot className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-              </span>
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-xs text-blue-450 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-blue-400">
-                Generator AI
-              </p>
-              <p className="text-sm font-sans font-semibold text-white/90 group-hover:text-blue-400 transition-colors">RPP, LKPD, Asesmen</p>
             </div>
           </motion.button>
 

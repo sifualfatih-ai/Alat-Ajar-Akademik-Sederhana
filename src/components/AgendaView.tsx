@@ -6,9 +6,11 @@ import {
   Calendar, 
   CheckCircle, 
   AlertCircle,
-  FileText
+  FileText,
+  Download
 } from "lucide-react";
 import { ClassInfo, AgendaRecord } from "../types";
+import { exportToExcel, exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
 
 interface AgendaViewProps {
@@ -53,6 +55,39 @@ export default function AgendaView({ classes, records, onAddAgenda }: AgendaView
     }
   };
 
+  const handleExport = (format: 'xlsx' | 'csv' | 'pdf') => {
+    if (records.length === 0) {
+      alert("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const exportData = records.map(rec => ({
+      'Tanggal': rec.date,
+      'Waktu': rec.jam,
+      'Kelas': rec.classId,
+      'Status': rec.status,
+      'Materi': rec.topic,
+      'Catatan': rec.notes || '-'
+    }));
+
+    if (format === 'xlsx') {
+      exportToExcel(exportData, 'Laporan_Jurnal_Mengajar');
+    } else if (format === 'csv') {
+      exportToCSV(exportData, 'Laporan_Jurnal_Mengajar');
+    } else if (format === 'pdf') {
+      const headers = ['Tanggal', 'Waktu', 'Kelas', 'Status', 'Materi', 'Catatan'];
+      const body = exportData.map(d => [
+        d.Tanggal,
+        d.Waktu,
+        d.Kelas,
+        d.Status,
+        d.Materi,
+        d.Catatan
+      ]);
+      exportToPDF(headers, body, 'Laporan_Jurnal_Mengajar', 'Laporan Jurnal Agenda Mengajar');
+    }
+  };
+
   return (
     <div className="space-y-6" id="agenda-view-wrapper">
       <div>
@@ -84,6 +119,7 @@ export default function AgendaView({ classes, records, onAddAgenda }: AgendaView
                   <input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     className="w-full bg-[#1e293b]/50 border border-white/10 rounded-xl pl-9.5 pr-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500 dark:[color-scheme:dark]"
@@ -171,9 +207,19 @@ export default function AgendaView({ classes, records, onAddAgenda }: AgendaView
 
         {/* Historic timeline agenda log */}
         <div className="backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-5 shadow-xl space-y-4 h-fit text-white" id="agenda-history">
-          <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1.5">
-            <FileText className="w-4 h-4 text-blue-400" /> Log Agenda Guru
-          </h3>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold text-white/55 font-mono uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-blue-400" /> Log Agenda Guru
+            </h3>
+            {records.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xxs font-mono text-white/40 uppercase w-full mb-0.5">Export Laporan:</span>
+                <button onClick={() => handleExport('xlsx')} className="flex-1 text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
+                <button onClick={() => handleExport('csv')} className="flex-1 text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> CSV</button>
+                <button onClick={() => handleExport('pdf')} className="flex-1 text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1" id="agenda-scroller">
             {records.length === 0 ? (

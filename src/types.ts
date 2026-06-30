@@ -2,6 +2,7 @@ export interface Student {
   id: string;
   name: string;
   gender: 'L' | 'P';
+  classId?: string;
 }
 
 export interface ClassInfo {
@@ -77,6 +78,7 @@ export interface SchoolSettings {
   logoUrl?: string;
   schoolName: string;
   teacherName: string;
+  subject?: string;
   dashboardTitle: string;
   description: string;
   address: string;
