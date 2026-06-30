@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Smartphone, Lock, User, Mail, School, Loader2, ArrowRight } from 'lucide-react';
 import { SchoolSettings } from '../types';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from '../lib/firebase';
 
 interface LoginViewProps {
   settings: SchoolSettings;
   onLoginSuccess: (token: string, userData?: any) => void;
-  postToAppsScript: (action: string, payload: any) => Promise<any>;
 }
 
-export default function LoginView({ settings, onLoginSuccess, postToAppsScript }: LoginViewProps) {
+export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) {
   const [isLoginMode, setIsLoginMode] = useState(true);
   
   // Form fields
@@ -28,24 +30,22 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
     setSuccessMsg(null);
     
     if (isLoginMode) {
-      if (!whatsapp || !password) {
-        setError("WhatsApp dan Password wajib diisi.");
+      if (!email || !password) {
+        setError("Email dan Password wajib diisi.");
         return;
       }
       setIsLoading(true);
       try {
-        const response = await postToAppsScript("login", { whatsapp, password });
-        if (response && response.success && response.token) {
-          onLoginSuccess(response.token, response.user);
-        } else {
-          let errMsg = response?.error || "Login gagal. Periksa kembali data Anda.";
-          if (errMsg.includes("tidak divalidasi oleh router")) {
-            errMsg = "Login gagal. Server Apps Script belum diperbarui dengan kode terbaru (/appsscript/code.gs). Harap deploy versi baru.";
-          }
-          setError(errMsg);
-        }
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const token = await user.getIdToken();
+        onLoginSuccess(token, {
+          uid: user.uid,
+          email: user.email,
+          nama: user.displayName || 'User',
+        });
       } catch (err: any) {
-        setError(err.message || "Terjadi kesalahan jaringan.");
+        setError(err.message || "Login gagal. Periksa kembali email dan password Anda.");
       } finally {
         setIsLoading(false);
       }
@@ -56,18 +56,32 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
       }
       setIsLoading(true);
       try {
-        const response = await postToAppsScript("register", { nama, whatsapp, email, namasekolah, password });
-        if (response && response.success && response.token) {
-          onLoginSuccess(response.token, response.user);
-        } else {
-          let errMsg = response?.error || "Pendaftaran gagal. Coba lagi.";
-          if (errMsg.includes("tidak divalidasi oleh router")) {
-            errMsg = "Pendaftaran gagal. Server Apps Script belum diperbarui dengan kode terbaru (/appsscript/code.gs). Harap deploy versi baru.";
-          }
-          setError(errMsg);
-        }
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        await updateProfile(user, { displayName: nama });
+        
+        // Save user details to Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          nama,
+          whatsapp,
+          email,
+          namasekolah,
+          role: "teacher",
+          createdAt: new Date().toISOString()
+        });
+
+        const token = await user.getIdToken();
+        onLoginSuccess(token, {
+          uid: user.uid,
+          email,
+          nama,
+          whatsapp,
+          namasekolah
+        });
       } catch (err: any) {
-        setError(err.message || "Terjadi kesalahan jaringan.");
+        setError(err.message || "Pendaftaran gagal. Coba lagi.");
       } finally {
         setIsLoading(false);
       }
@@ -99,7 +113,7 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
             </h2>
             <p className="text-slate-400 text-xs mt-1">
               {isLoginMode 
-                ? 'Masukkan nomor WhatsApp dan password Anda' 
+                ? 'Masukkan email dan password Anda' 
                 : 'Lengkapi data di bawah untuk bergabung'}
             </p>
           </div>
@@ -140,17 +154,17 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
                 
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Email
+                    Nomor WhatsApp
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-4 w-4 text-slate-500" />
+                      <Smartphone className="h-4 w-4 text-slate-500" />
                     </div>
                     <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Email aktif Anda"
+                      type="tel"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      placeholder="Contoh: 081234567890"
                       className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
                       disabled={isLoading}
                     />
@@ -180,17 +194,17 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
             
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
-                Nomor WhatsApp
+                Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Smartphone className="h-4 w-4 text-slate-500" />
+                  <Mail className="h-4 w-4 text-slate-500" />
                 </div>
                 <input
-                  type="tel"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  placeholder="Contoh: 081234567890"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email aktif Anda"
                   className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
                   disabled={isLoading}
                 />
@@ -218,7 +232,7 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
 
             <button
               type="submit"
-              disabled={isLoading || !whatsapp || !password || (!isLoginMode && (!nama || !email || !namasekolah))}
+              disabled={isLoading || !email || !password || (!isLoginMode && (!nama || !whatsapp || !namasekolah))}
               className="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-900/20 mt-6"
             >
               {isLoading ? (

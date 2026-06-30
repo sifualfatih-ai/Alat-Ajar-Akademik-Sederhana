@@ -11,6 +11,8 @@ import AdminView from "./components/AdminView";
 import LoginView from "./components/LoginView";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import DataSiswaView from "./components/DataSiswaView";
+import { db, auth } from "./lib/firebase";
+import { doc, setDoc, writeBatch } from "firebase/firestore";
 import { 
   Student, 
   ClassInfo, 
@@ -194,18 +196,8 @@ export default function App() {
     
     for (const task of tasks) {
       try {
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
-        const res = await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ 
-            action: task.action, 
-            data: task.payload,
-            teacherName: settings.teacherName
-          })
-        });
-        const parsed = await res.json();
-        if (parsed.success) {
+        const res = await syncToFirestore(task.action, task.payload);
+        if (res.success && !res.offline) {
           successCount++;
         } else {
           remainingTasks.push(task);
@@ -263,58 +255,61 @@ export default function App() {
   // Test Apps Script Connectivity on load
   useEffect(() => {
     const testConnection = async () => {
-      try {
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
-        const res = await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "test" })
-        });
-        const parse = await res.json();
-        setIsConnected(parse.success);
-      } catch {
-        setIsConnected(false);
-      }
+      setIsConnected(navigator.onLine);
     };
     testConnection();
   }, []);
 
-  // Post forwarder directly to Google Apps Script (Bypassing Vercel missing API)
-  const postToAppsScript = async (action: string, payload: any): Promise<any> => {
+  // Sync to Firebase Firestore instead of Google Apps Script
+  const syncToFirestore = async (action: string, payload: any): Promise<any> => {
     if (!navigator.onLine) {
        setPendingSyncTasks(prev => [...prev, { action, payload, timestamp: Date.now() }]);
        return { success: true, message: "Offline - Tersimpan secara lokal dalam antrean", offline: true };
     }
 
     try {
-      // Direct call to the Apps Script URL since production is hosted statically (e.g. Vercel)
-      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
-      const res = await fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" }, // text/plain prevents CORS preflight
-        body: JSON.stringify({ 
-          action, 
-          data: payload,
-          teacherName: settings.teacherName
-        })
-      });
-      const parsed = await res.json();
-      if (parsed.success && parsed.data) {
-        return parsed.data;
+      if (!auth.currentUser) throw new Error("Not authenticated");
+      const userId = auth.currentUser.uid;
+      
+      if (action === "submitAbsensi") {
+        await setDoc(doc(db, "attendance", payload.id), { ...payload, userId });
+      } else if (action === "submitPenilaian") {
+        await setDoc(doc(db, "grades", payload.id), { ...payload, userId });
+      } else if (action === "submitAgenda") {
+        await setDoc(doc(db, "agendas", payload.id), { ...payload, userId });
+      } else if (action === "submitBimbingan") {
+        await setDoc(doc(db, "bimbingan", payload.id), { ...payload, userId });
+      } else if (action === "syncAttendance") {
+        const batch = writeBatch(db);
+        payload.forEach((record: any) => {
+          batch.set(doc(db, "attendance", record.id), { ...record, userId });
+        });
+        await batch.commit();
+      } else if (action === "syncGrades") {
+        const batch = writeBatch(db);
+        payload.forEach((record: any) => {
+          batch.set(doc(db, "grades", record.id), { ...record, userId });
+        });
+        await batch.commit();
+      } else if (action === "syncAgendas") {
+        const batch = writeBatch(db);
+        payload.forEach((record: any) => {
+          batch.set(doc(db, "agendas", record.id), { ...record, userId });
+        });
+        await batch.commit();
+      } else if (action === "syncBimbingan") {
+        const batch = writeBatch(db);
+        payload.forEach((record: any) => {
+          batch.set(doc(db, "bimbingan", record.id), { ...record, userId });
+        });
+        await batch.commit();
       }
-      return parsed;
+      
+      return { success: true, data: payload };
     } catch (err) {
-      console.error(`Apps Script Error for action ${action}:`, err);
-      if (err instanceof Error && (err.message.includes("Failed to fetch") || err.message.includes("Network error") || err.message.includes("fetch"))) {
+      console.error(`Firebase Error for action ${action}:`, err);
+      if (err instanceof Error && (err.message.includes("offline") || err.message.includes("network"))) {
         setPendingSyncTasks(prev => [...prev, { action, payload, timestamp: Date.now() }]);
-        
-        // Register background sync task with Service Worker
-        if ('serviceWorker' in navigator && 'SyncManager' in window) {
-          navigator.serviceWorker.ready.then(registration => {
-            registration.sync.register('sync-apps-script').catch(console.error);
-          });
-        }
-        
         return { success: true, message: "Jaringan error - Tersimpan ke dalam antrean sinkronisasi", offline: true };
       }
       return { success: false, error: err instanceof Error ? err.message : "Network error" };
@@ -329,10 +324,10 @@ export default function App() {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const syncTasks = [
-        postToAppsScript("syncAttendance", attendanceRecords),
-        postToAppsScript("syncGrades", gradeRecords),
-        postToAppsScript("syncAgendas", agendaRecords),
-        postToAppsScript("syncBimbingan", bimbinganRecords)
+        syncToFirestore("syncAttendance", attendanceRecords),
+        syncToFirestore("syncGrades", gradeRecords),
+        syncToFirestore("syncAgendas", agendaRecords),
+        syncToFirestore("syncBimbingan", bimbinganRecords)
       ];
 
       const results = await Promise.all(syncTasks);
@@ -367,7 +362,7 @@ export default function App() {
     setAttendanceRecords(prev => [newRecord, ...prev]);
 
     // Send immediately to Apps Script database
-    const result = await postToAppsScript("submitAbsensi", newRecord);
+    const result = await syncToFirestore("submitAbsensi", newRecord);
     return result?.success === true;
   };
 
@@ -381,7 +376,7 @@ export default function App() {
     };
 
     setGradeRecords(prev => [newRecord, ...prev]);
-    const result = await postToAppsScript("submitPenilaian", newRecord);
+    const result = await syncToFirestore("submitPenilaian", newRecord);
     return result?.success === true;
   };
 
@@ -393,7 +388,7 @@ export default function App() {
     };
 
     setAgendaRecords(prev => [newRecord, ...prev]);
-    const result = await postToAppsScript("submitAgenda", newRecord);
+    const result = await syncToFirestore("submitAgenda", newRecord);
     return result?.success === true;
   };
 
@@ -405,7 +400,7 @@ export default function App() {
     };
 
     setBimbinganRecords(prev => [newRecord, ...prev]);
-    const result = await postToAppsScript("submitBimbingan", newRecord);
+    const result = await syncToFirestore("submitBimbingan", newRecord);
     return result?.success === true;
   };
 
@@ -442,7 +437,6 @@ export default function App() {
             }));
           }
         }}
-        postToAppsScript={postToAppsScript}
       />
     );
   }
@@ -639,7 +633,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 2. Modal Dialog: About Database & Google Apps Script Setup */}
+      {/* 2. Modal Dialog: About Database & Firebase Setup */}
       <AnimatePresence>
         {showIntegrasiInfo && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sans">
@@ -658,10 +652,10 @@ export default function App() {
               <div className="space-y-3.5 text-xs text-white/70 leading-relaxed overflow-y-auto max-h-[350px]">
                 <div className="space-y-1.5 p-3.5 bg-blue-500/10 text-blue-200 rounded-xl border border-blue-500/20">
                   <span className="font-bold text-blue-300 flex items-center gap-1">
-                    <ShieldCheck className="w-4 h-4 shrink-0" /> Alur Aman Tanpa CORS
+                    <ShieldCheck className="w-4 h-4 shrink-0" /> Alur Aman Firebase
                   </span>
                   <p className="text-xxs text-blue-200/90 font-sans">
-                    Aplikasi ini menggunakan topologi Server-Proxy yang andal, menyalurkan semua panggilan API dari sisi klien melintasi port aman internal lalu meneruskannya ke script tujuan.
+                    Aplikasi ini menggunakan infrastruktur Firebase Firestore yang aman untuk menyimpan data secara real-time dan terpusat.
                   </p>
                 </div>
 
@@ -673,25 +667,10 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1 font-sans">
-                  <p className="font-bold text-white">2. Google Apps Script Web App:</p>
+                  <p className="font-bold text-white">2. Firebase Firestore Database:</p>
                   <p className="text-white/60">
-                    Alamat URL macro script yang dimasukkan dikonfigurasi sebagai database primer untuk mencadangkan data secara terpusat ke dalam lembar kerja Google Sheets.
+                    Data Anda secara otomatis disinkronkan ke database Firestore yang aman saat jaringan tersedia.
                   </p>
-                </div>
-
-                <div className="space-y-1 font-sans">
-                  <p className="font-semibold text-white">Struktur Payload JSON yang Dikirim:</p>
-                  <pre className="p-3 bg-white/5 border border-white/10 rounded-lg text-xxs font-mono text-blue-300 overflow-x-auto leading-snug">
-{`{
-  "action": "submitAbsensi",
-  "teacherName": "Guru Indonensia",
-  "data": {
-    "date": "2026-05-20",
-    "classId": "VII-A",
-    "students": [{"studentId":"st-01","status":"H"}]
-  }
-}`}
-                  </pre>
                 </div>
               </div>
 

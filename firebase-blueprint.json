@@ -1,0 +1,66 @@
+{
+  "models": {
+    "users": {
+      "type": "collection",
+      "fields": {
+        "uid": "string",
+        "nama": "string",
+        "whatsapp": "string",
+        "email": "string",
+        "namasekolah": "string",
+        "role": "string",
+        "createdAt": "timestamp"
+      }
+    },
+    "attendance": {
+      "type": "collection",
+      "fields": {
+        "id": "string",
+        "userId": "string",
+        "classId": "string",
+        "studentId": "string",
+        "status": "string",
+        "timestamp": "string",
+        "submittedAt": "string",
+        "subject": "string",
+        "topic": "string"
+      }
+    },
+    "grades": {
+      "type": "collection",
+      "fields": {
+        "id": "string",
+        "userId": "string",
+        "classId": "string",
+        "subject": "string",
+        "submittedAt": "string",
+        "grades": "array"
+      }
+    },
+    "agendas": {
+      "type": "collection",
+      "fields": {
+        "id": "string",
+        "userId": "string",
+        "date": "string",
+        "activity": "string",
+        "details": "string",
+        "time": "string",
+        "status": "string",
+        "submittedAt": "string"
+      }
+    },
+    "bimbingan": {
+      "type": "collection",
+      "fields": {
+        "id": "string",
+        "userId": "string",
+        "date": "string",
+        "studentName": "string",
+        "topic": "string",
+        "notes": "string",
+        "submittedAt": "string"
+      }
+    }
+  }
+}
