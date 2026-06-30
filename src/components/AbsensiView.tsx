@@ -8,21 +8,24 @@ import {
   Send,
   Sparkles,
   Info,
-  Download
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Image as ImageIcon
 } from "lucide-react";
 import { Student, ClassInfo, AttendanceRecord, AttendanceStatus } from "../types";
 import { exportToExcel, exportToCSV, exportToPDF, exportVisualToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
+import ExportDropdown from "./ExportDropdown";
 
 interface AbsensiViewProps {
   students: Student[];
   classes: ClassInfo[];
   records: AttendanceRecord[];
   onSave: (date: string, classId: string, attendance: { studentId: string; status: AttendanceStatus }[]) => Promise<boolean>;
-  isSyncing: boolean;
 }
 
-export default function AbsensiView({ students, classes, records, onSave, isSyncing }: AbsensiViewProps) {
+export default function AbsensiView({ students, classes, records, onSave }: AbsensiViewProps) {
   const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || "");
   const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [localAttendance, setLocalAttendance] = useState<Record<string, AttendanceStatus>>({});
@@ -337,13 +340,14 @@ export default function AbsensiView({ students, classes, records, onSave, isSync
               <span className="text-xxs px-2 py-0.5 bg-white/5 text-white/50 rounded border border-white/5 font-mono font-semibold">Terkini</span>
             </div>
             {records.length > 0 && (
-              <div className="flex items-center gap-1.5 pt-1">
-                <span className="text-xxs font-mono text-white/40 uppercase">Export:</span>
-                <button onClick={() => handleExport('xlsx')} className="text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
-                <button onClick={() => handleExport('csv')} className="text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
-                <button onClick={() => handleExport('pdf')} className="text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> PDF Tabel</button>
-                <button onClick={() => exportVisualToPDF('absensi-history-container', 'Laporan_Visual_Absensi')} className="text-xxs font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 px-2 py-1 rounded transition-colors flex items-center gap-1"><Download className="w-3 h-3" /> PDF Visual</button>
-              </div>
+              <ExportDropdown
+                options={[
+                  { id: 'xlsx', label: 'XLSX (Excel)', icon: FileSpreadsheet, color: 'text-emerald-400', onClick: () => handleExport('xlsx') },
+                  { id: 'csv', label: 'CSV Data', icon: FileText, color: 'text-amber-400', onClick: () => handleExport('csv') },
+                  { id: 'pdf-table', label: 'PDF Tabel', icon: FileText, color: 'text-rose-400', onClick: () => handleExport('pdf') },
+                  { id: 'pdf-visual', label: 'PDF Visual', icon: ImageIcon, color: 'text-purple-400', onClick: () => exportVisualToPDF('absensi-history-container', 'Laporan_Visual_Absensi') },
+                ]}
+              />
             )}
           </div>
 

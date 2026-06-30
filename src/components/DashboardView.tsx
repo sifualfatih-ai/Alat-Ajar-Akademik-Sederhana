@@ -10,7 +10,6 @@ import {
   Bot, 
   Download, 
   MapPin,
-  RefreshCw,
   TrendingUp,
   BarChart2
 } from "lucide-react";
@@ -28,8 +27,6 @@ interface DashboardViewProps {
     rombel: number;
     siswa: number;
   };
-  isSyncing: boolean;
-  onSync: () => void;
   settings: SchoolSettings;
   attendanceRecords: AttendanceRecord[];
   gradeRecords: GradeRecord[];
@@ -38,8 +35,6 @@ interface DashboardViewProps {
 export default function DashboardView({ 
   onNavigate, 
   stats, 
-  isSyncing, 
-  onSync, 
   settings, 
   attendanceRecords, 
   gradeRecords 
@@ -120,16 +115,6 @@ export default function DashboardView({
               </p>
             </div>
           </div>
-          
-          <button 
-            onClick={onSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/30 text-white border border-blue-500/20 active:scale-95 transition-all text-xs px-4 py-2.5 rounded-xl self-start md:self-center font-sans font-bold tracking-wide cursor-pointer shadow-lg shadow-blue-900/25"
-            id="sync-btn"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? "Sinkronisasi..." : "Sinkronkan Apps Script"}
-          </button>
         </div>
       </motion.div>
 

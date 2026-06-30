@@ -73,6 +73,14 @@ export interface BimbinganRecord {
   submittedAt: string;
 }
 
+export interface TeacherJournalRecord {
+  id: string;
+  date: string;
+  classId: string;
+  notes: string; // Refleksi harian atau catatan dinamika kelas
+  submittedAt: string;
+}
+
 export interface SchoolSettings {
   logo: string;
   logoUrl?: string;

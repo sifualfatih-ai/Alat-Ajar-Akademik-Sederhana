@@ -5,9 +5,11 @@ import AbsensiView from "./components/AbsensiView";
 import PenilaianView from "./components/PenilaianView";
 import JadwalView from "./components/JadwalView";
 import AgendaView from "./components/AgendaView";
+import JurnalGuruView from "./components/JurnalGuruView";
 import BimbinganView from "./components/BimbinganView";
 import DownloadView from "./components/DownloadView";
 import AdminView from "./components/AdminView";
+import SuperAdminView from "./components/SuperAdminView";
 import LoginView from "./components/LoginView";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import DataSiswaView from "./components/DataSiswaView";
@@ -21,6 +23,7 @@ import {
   ScheduleItem, 
   AgendaRecord, 
   BimbinganRecord, 
+  TeacherJournalRecord,
   AttendanceStatus,
   GradeItem,
   SchoolSettings
@@ -76,6 +79,9 @@ export default function App() {
   // Auth State
   const [authToken, setAuthToken] = useState<string | null>(() => {
     return safeStorage.getItem("sg_auth_token");
+  });
+  const [userEmail, setUserEmail] = useState<string | null>(() => {
+    return safeStorage.getItem("sg_user_email");
   });
 
   // School Profile Attr settings
@@ -133,8 +139,12 @@ export default function App() {
     try { return saved ? JSON.parse(saved) : []; } catch(e){ return []; }
   });
 
+  const [teacherJournalRecords, setTeacherJournalRecords] = useState<TeacherJournalRecord[]>(() => {
+    const saved = safeStorage.getItem("sg_teacher_journals");
+    try { return saved ? JSON.parse(saved) : []; } catch(e){ return []; }
+  });
+
   // Connection & sync state with AppScript
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [pendingSyncTasks, setPendingSyncTasks] = useState<any[]>(() => {
     try {
@@ -175,12 +185,18 @@ export default function App() {
   }, [bimbinganRecords]);
 
   useEffect(() => {
+    safeStorage.setItem("sg_teacher_journals", JSON.stringify(teacherJournalRecords));
+  }, [teacherJournalRecords]);
+
+  useEffect(() => {
     if (authToken) {
       safeStorage.setItem("sg_auth_token", authToken);
+      if (userEmail) safeStorage.setItem("sg_user_email", userEmail);
     } else {
       safeStorage.removeItem("sg_auth_token");
+      safeStorage.removeItem("sg_user_email");
     }
-  }, [authToken]);
+  }, [authToken, userEmail]);
 
   useEffect(() => {
     safeStorage.setItem("sg_school_settings", JSON.stringify(settings));
@@ -191,7 +207,6 @@ export default function App() {
   }, [pendingSyncTasks]);
 
   const handleProcessPendingSync = async (tasks: any[]) => {
-    setIsSyncing(true);
     let successCount = 0;
     const remainingTasks = [];
     
@@ -209,7 +224,6 @@ export default function App() {
     }
     
     setPendingSyncTasks(remainingTasks);
-    setIsSyncing(false);
     
     if (successCount > 0) {
       toast.success(`Sinkronisasi berhasil! ${successCount} data dikirim ke cloud.`, {
@@ -292,6 +306,9 @@ export default function App() {
       } else if (action === "submitBimbingan") {
         await setDoc(doc(db, "bimbingan", payload.id), { ...payload, userId });
         toast.success("Data bimbingan berhasil disimpan ke cloud", { style: { background: '#10b981', color: '#fff', borderRadius: '12px' } });
+      } else if (action === "submitTeacherJournal") {
+        await setDoc(doc(db, "teacher_journals", payload.id), { ...payload, userId });
+        toast.success("Data jurnal guru berhasil disimpan ke cloud", { style: { background: '#10b981', color: '#fff', borderRadius: '12px' } });
       } else if (action === "syncAttendance") {
         const batch = writeBatch(db);
         payload.forEach((record: any) => {
@@ -316,6 +333,12 @@ export default function App() {
           batch.set(doc(db, "bimbingan", record.id), { ...record, userId });
         });
         await batch.commit();
+      } else if (action === "syncTeacherJournals") {
+        const batch = writeBatch(db);
+        payload.forEach((record: any) => {
+          batch.set(doc(db, "teacher_journals", record.id), { ...record, userId });
+        });
+        await batch.commit();
       }
       
       return { success: true, data: payload };
@@ -326,42 +349,6 @@ export default function App() {
         return { success: true, message: "Jaringan error - Tersimpan ke dalam antrean sinkronisasi", offline: true };
       }
       return { success: false, error: err instanceof Error ? err.message : "Network error" };
-    }
-  };
-
-  // Perform a full bulk sync across everything to Apps Script
-  const handleBulkSync = async () => {
-    setIsSyncing(true);
-    try {
-      // Simulate packet processing delays to offer rich loading state
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const syncTasks = [
-        syncToFirestore("syncAttendance", attendanceRecords),
-        syncToFirestore("syncGrades", gradeRecords),
-        syncToFirestore("syncAgendas", agendaRecords),
-        syncToFirestore("syncBimbingan", bimbinganRecords)
-      ];
-
-      const results = await Promise.all(syncTasks);
-      const allSucceeded = results.every(r => r?.success === true);
-      setIsConnected(allSucceeded);
-      
-      if (allSucceeded) {
-        toast.success("Sinkronisasi Sukses! Semua data berhasil diunggah ke cloud.", {
-          style: { background: '#10b981', color: '#fff', borderRadius: '12px' }
-        });
-      } else {
-        toast.error("Sebagian data gagal disinkronkan. Periksa koneksi Anda.", {
-          style: { background: '#ef4444', color: '#fff', borderRadius: '12px' }
-        });
-      }
-    } catch (err) {
-      toast.error("Sinkronisasi gagal: Hubungi administrator.", {
-        style: { background: '#ef4444', color: '#fff', borderRadius: '12px' }
-      });
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -424,6 +411,18 @@ export default function App() {
     return result?.success === true;
   };
 
+  const handleAddJournal = async (journal: Omit<TeacherJournalRecord, 'id' | 'submittedAt'>): Promise<boolean> => {
+    const newRecord: TeacherJournalRecord = {
+      ...journal,
+      id: `jour-${Date.now()}`,
+      submittedAt: new Date().toLocaleString("id-ID")
+    };
+
+    setTeacherJournalRecords(prev => [newRecord, ...prev]);
+    const result = await syncToFirestore("submitTeacherJournal", newRecord);
+    return result?.success === true;
+  };
+
   const handleAddSchedule = (itm: Omit<ScheduleItem, 'id'>) => {
     const newItem: ScheduleItem = {
       ...itm,
@@ -450,11 +449,12 @@ export default function App() {
         onLoginSuccess={(token, userData) => {
           setAuthToken(token);
           if (userData) {
-            setSettings(prev => ({
-              ...prev,
-              schoolName: userData.namasekolah || prev.schoolName,
-              teacherName: userData.nama || prev.teacherName,
-            }));
+            if (userData.email) {
+              setUserEmail(userData.email);
+              if (userData.email === "sitimulyati.alfatih@gmail.com") {
+                setCurrentView("SuperAdmin");
+              }
+            }
           }
         }}
       />
@@ -468,8 +468,6 @@ export default function App() {
           <DashboardView 
             onNavigate={setCurrentView}
             stats={{ rombel: classes.length, siswa: students.length }}
-            isSyncing={isSyncing}
-            onSync={handleBulkSync}
             settings={settings}
             attendanceRecords={attendanceRecords}
             gradeRecords={gradeRecords}
@@ -482,7 +480,6 @@ export default function App() {
             classes={classes}
             records={attendanceRecords}
             onSave={handleSaveAttendance}
-            isSyncing={isSyncing}
           />
         );
       case "Penilaian":
@@ -492,7 +489,6 @@ export default function App() {
             classes={classes}
             records={gradeRecords}
             onSave={handleSaveGrades}
-            isSyncing={isSyncing}
             teacherSubject={settings.subject}
           />
         );
@@ -523,6 +519,14 @@ export default function App() {
             onAddRecord={handleSaveBimbingan}
           />
         );
+      case "JurnalGuru":
+        return (
+          <JurnalGuruView 
+            classes={classes}
+            records={teacherJournalRecords}
+            onAddJournal={handleAddJournal}
+          />
+        );
       case "Download":
         return (
           <DownloadView 
@@ -550,6 +554,8 @@ export default function App() {
             onDeleteStudent={(id) => setStudents(prev => prev.filter(s => s.id !== id))}
           />
         );
+      case "SuperAdmin":
+        return <SuperAdminView />;
       case "Admin":
         return (
           <AdminView 
@@ -586,6 +592,7 @@ export default function App() {
         onNavigate={setCurrentView}
         onLogout={() => setShowLogoutConfirm(true)}
         settings={settings}
+        userEmail={userEmail}
       />
 
       {/* Main Content Pane */}

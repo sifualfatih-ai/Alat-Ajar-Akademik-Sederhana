@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   Settings,
-  Users
+  Users,
+  BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { SchoolSettings } from "../types";
@@ -21,9 +22,10 @@ interface SidebarProps {
   onNavigate: (view: string) => void;
   onLogout: () => void;
   settings: SchoolSettings;
+  userEmail?: string | null;
 }
 
-export default function Sidebar({ currentView, onNavigate, onLogout, settings }: SidebarProps) {
+export default function Sidebar({ currentView, onNavigate, onLogout, settings, userEmail }: SidebarProps) {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   const menuItems = [
@@ -33,10 +35,15 @@ export default function Sidebar({ currentView, onNavigate, onLogout, settings }:
     { view: "Penilaian", label: "Penilaian", icon: Star },
     { view: "Jadwal", label: "Jadwal Mengajar", icon: Clock },
     { view: "Agenda", label: "Jurnal Agenda", icon: NotebookPen },
+    { view: "JurnalGuru", label: "Jurnal Guru", icon: BookOpen },
     { view: "Bimbingan", label: "Bimbingan Wali", icon: HeartHandshake },
     { view: "Download", label: "Berbagi Dokumen Ajar", icon: Download },
     { view: "Admin", label: "Pengaturan Admin", icon: Settings }
   ];
+
+  if (userEmail === "sitimulyati.alfatih@gmail.com") {
+    menuItems.push({ view: "SuperAdmin", label: "Super Admin", icon: Users });
+  }
 
   const handleMobileNavigate = (view: string) => {
     onNavigate(view);

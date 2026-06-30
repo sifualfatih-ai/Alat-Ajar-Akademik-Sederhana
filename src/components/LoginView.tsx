@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Smartphone, Lock, User, Mail, School, Loader2, ArrowRight } from 'lucide-react';
 import { SchoolSettings } from '../types';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { auth, db } from '../lib/firebase';
 
 interface LoginViewProps {
@@ -50,35 +50,51 @@ export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) 
         setIsLoading(false);
       }
     } else {
-      if (!nama || !whatsapp || !email || !namasekolah || !password) {
+      if (!whatsapp || !email || !password) {
         setError("Semua kolom wajib diisi.");
         return;
       }
       setIsLoading(true);
       try {
+        // Cek batasan 100 pengguna
+        const statsRef = doc(db, 'app_metadata', 'stats');
+        let statsSnap = await getDoc(statsRef);
+        
+        if (!statsSnap.exists()) {
+          await setDoc(statsRef, { userCount: 0 });
+          statsSnap = await getDoc(statsRef);
+        }
+
+        if ((statsSnap.data()?.userCount || 0) >= 100) {
+          setError("Pendaftaran ditutup: Kapasitas telah mencapai batas maksimum (100 pengguna).");
+          setIsLoading(false);
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        await updateProfile(user, { displayName: nama });
+        await updateProfile(user, { displayName: "User" });
         
         // Save user details to Firestore
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
-          nama,
           whatsapp,
           email,
-          namasekolah,
           role: "teacher",
           createdAt: new Date().toISOString()
+        });
+
+        // Increment total user count
+        await updateDoc(statsRef, {
+          userCount: increment(1)
         });
 
         const token = await user.getIdToken();
         onLoginSuccess(token, {
           uid: user.uid,
           email,
-          nama,
-          whatsapp,
-          namasekolah
+          whatsapp
         });
       } catch (err: any) {
         setError(err.message || "Pendaftaran gagal. Coba lagi.");
@@ -135,25 +151,6 @@ export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) 
               <>
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Nama Lengkap
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-4 w-4 text-slate-500" />
-                    </div>
-                    <input
-                      type="text"
-                      value={nama}
-                      onChange={(e) => setNama(e.target.value)}
-                      placeholder="Nama lengkap Anda"
-                      className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
                     Nomor WhatsApp
                   </label>
                   <div className="relative">
@@ -165,25 +162,6 @@ export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) 
                       value={whatsapp}
                       onChange={(e) => setWhatsapp(e.target.value)}
                       placeholder="Contoh: 081234567890"
-                      className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Nama Sekolah
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <School className="h-4 w-4 text-slate-500" />
-                    </div>
-                    <input
-                      type="text"
-                      value={namasekolah}
-                      onChange={(e) => setNamasekolah(e.target.value)}
-                      placeholder="Nama Instansi/Sekolah"
                       className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
                       disabled={isLoading}
                     />
@@ -232,7 +210,7 @@ export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) 
 
             <button
               type="submit"
-              disabled={isLoading || !email || !password || (!isLoginMode && (!nama || !whatsapp || !namasekolah))}
+              disabled={isLoading || !email || !password || (!isLoginMode && !whatsapp)}
               className="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-900/20 mt-6"
             >
               {isLoading ? (

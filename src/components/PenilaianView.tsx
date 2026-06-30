@@ -7,22 +7,24 @@ import {
   AlertCircle,
   FileSpreadsheet,
   Info,
-  Download
+  Download,
+  FileText,
+  Image as ImageIcon
 } from "lucide-react";
 import { Student, ClassInfo, GradeRecord, GradeItem } from "../types";
 import { exportToExcel, exportToCSV, exportToPDF, exportVisualToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
+import ExportDropdown from "./ExportDropdown";
 
 interface PenilaianViewProps {
   students: Student[];
   classes: ClassInfo[];
   records: GradeRecord[];
   onSave: (classId: string, subject: string, grades: GradeItem[]) => Promise<boolean>;
-  isSyncing: boolean;
   teacherSubject?: string;
 }
 
-export default function PenilaianView({ students, classes, records, onSave, isSyncing, teacherSubject }: PenilaianViewProps) {
+export default function PenilaianView({ students, classes, records, onSave, teacherSubject }: PenilaianViewProps) {
   const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || "");
   const [subject, setSubject] = useState<string>(teacherSubject || "Ilmu Pengetahuan Alam (IPA)");
   const [gradesInput, setGradesInput] = useState<Record<string, { t1: number, t2: number, uts: number, uas: number }>>({});
@@ -395,13 +397,14 @@ max="100"
               <FileSpreadsheet className="w-4 h-4 text-blue-400 animate-pulse" /> Daftar Unggahan
             </h3>
             {records.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xxs font-mono text-white/40 uppercase w-full mb-0.5">Export Laporan:</span>
-                <button onClick={() => handleExport('xlsx')} className="flex-1 text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
-                <button onClick={() => handleExport('csv')} className="flex-1 text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> CSV</button>
-                <button onClick={() => handleExport('pdf')} className="flex-1 text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF Tabel</button>
-                <button onClick={() => exportVisualToPDF('grades-history-container', 'Laporan_Visual_Penilaian')} className="flex-1 text-xxs font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF Visual</button>
-              </div>
+              <ExportDropdown
+                options={[
+                  { id: 'xlsx', label: 'XLSX (Excel)', icon: FileSpreadsheet, color: 'text-emerald-400', onClick: () => handleExport('xlsx') },
+                  { id: 'csv', label: 'CSV Data', icon: FileText, color: 'text-amber-400', onClick: () => handleExport('csv') },
+                  { id: 'pdf-table', label: 'PDF Tabel', icon: FileText, color: 'text-rose-400', onClick: () => handleExport('pdf') },
+                  { id: 'pdf-visual', label: 'PDF Visual', icon: ImageIcon, color: 'text-purple-400', onClick: () => exportVisualToPDF('grades-history-container', 'Laporan_Visual_Penilaian') },
+                ]}
+              />
             )}
           </div>
 
