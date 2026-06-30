@@ -35,6 +35,7 @@ import {
   Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { Toaster, toast } from "react-hot-toast";
 
 // Real-world Indonesian student roster (representing SMP N 3 Siberut)
 const SEEDED_STUDENTS: Student[] = [];
@@ -211,21 +212,28 @@ export default function App() {
     setIsSyncing(false);
     
     if (successCount > 0) {
-      alert(`Sinkronisasi berhasil! ${successCount} data offline telah dikirim.`);
+      toast.success(`Sinkronisasi berhasil! ${successCount} data dikirim ke cloud.`, {
+        style: { background: '#10b981', color: '#fff', borderRadius: '12px' }
+      });
+    } else if (tasks.length > 0) {
+      toast.error('Gagal menyinkronkan data, akan mencoba lagi nanti.', {
+        style: { background: '#ef4444', color: '#fff', borderRadius: '12px' }
+      });
     }
   };
 
   useEffect(() => {
     const handleOnline = () => {
       setIsConnected(true);
+      toast.success('Jaringan terhubung', { style: { background: '#10b981', color: '#fff', borderRadius: '12px' }});
+      
       const saved = safeStorage.getItem("sg_pending_sync");
       if (saved) {
         try {
           const tasks = JSON.parse(saved);
           if (tasks && tasks.length > 0) {
-            if (window.confirm(`Anda kembali online! Terdapat ${tasks.length} data absensi/penilaian yang belum tersinkron. Sinkronisasi sekarang?`)) {
-              handleProcessPendingSync(tasks);
-            }
+            toast('Menyinkronkan data tertunda...', { icon: '🔄', style: { background: '#3b82f6', color: '#fff', borderRadius: '12px' } });
+            handleProcessPendingSync(tasks);
           }
         } catch(e) {}
       }
@@ -233,6 +241,7 @@ export default function App() {
     
     const handleOffline = () => {
       setIsConnected(false);
+      toast.error('Koneksi terputus. Mode offline aktif.', { style: { background: '#f59e0b', color: '#fff', borderRadius: '12px' } });
     };
 
     window.addEventListener('online', handleOnline);
@@ -273,12 +282,16 @@ export default function App() {
       
       if (action === "submitAbsensi") {
         await setDoc(doc(db, "attendance", payload.id), { ...payload, userId });
+        toast.success("Absensi berhasil disimpan ke cloud", { style: { background: '#10b981', color: '#fff', borderRadius: '12px' } });
       } else if (action === "submitPenilaian") {
         await setDoc(doc(db, "grades", payload.id), { ...payload, userId });
+        toast.success("Penilaian berhasil disimpan ke cloud", { style: { background: '#10b981', color: '#fff', borderRadius: '12px' } });
       } else if (action === "submitAgenda") {
         await setDoc(doc(db, "agendas", payload.id), { ...payload, userId });
+        toast.success("Agenda berhasil disimpan ke cloud", { style: { background: '#10b981', color: '#fff', borderRadius: '12px' } });
       } else if (action === "submitBimbingan") {
         await setDoc(doc(db, "bimbingan", payload.id), { ...payload, userId });
+        toast.success("Data bimbingan berhasil disimpan ke cloud", { style: { background: '#10b981', color: '#fff', borderRadius: '12px' } });
       } else if (action === "syncAttendance") {
         const batch = writeBatch(db);
         payload.forEach((record: any) => {
@@ -334,12 +347,19 @@ export default function App() {
       const allSucceeded = results.every(r => r?.success === true);
       setIsConnected(allSucceeded);
       
-      alert(allSucceeded 
-        ? "Sinkronisasi Sukses! Semua data lokal absensi, nilai, agenda, dan konseling berhasil diunggah ke Google spreadsheet Anda." 
-        : "Sinkronisasi Selesai. Data berhasil disimpan di database server."
-      );
+      if (allSucceeded) {
+        toast.success("Sinkronisasi Sukses! Semua data berhasil diunggah ke cloud.", {
+          style: { background: '#10b981', color: '#fff', borderRadius: '12px' }
+        });
+      } else {
+        toast.error("Sebagian data gagal disinkronkan. Periksa koneksi Anda.", {
+          style: { background: '#ef4444', color: '#fff', borderRadius: '12px' }
+        });
+      }
     } catch (err) {
-      alert("Singkronisasi gagal: Hubungi administrator.");
+      toast.error("Sinkronisasi gagal: Hubungi administrator.", {
+        style: { background: '#ef4444', color: '#fff', borderRadius: '12px' }
+      });
     } finally {
       setIsSyncing(false);
     }
@@ -507,6 +527,10 @@ export default function App() {
         return (
           <DownloadView 
             settings={settings}
+            attendanceRecords={attendanceRecords}
+            gradeRecords={gradeRecords}
+            students={students}
+            classes={classes}
           />
         );
       case "DataSiswa":
@@ -551,6 +575,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] bg-[#0f172a] text-white font-sans relative overflow-hidden" id="app-root-container">
+      <Toaster position="bottom-right" toastOptions={{ className: 'text-sm font-medium' }} />
       {/* Mesh Gradient Background Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/15 rounded-full blur-[130px] pointer-events-none z-0"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/15 rounded-full blur-[130px] pointer-events-none z-0"></div>

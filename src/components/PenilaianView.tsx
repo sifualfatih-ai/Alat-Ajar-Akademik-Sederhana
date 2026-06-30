@@ -10,7 +10,7 @@ import {
   Download
 } from "lucide-react";
 import { Student, ClassInfo, GradeRecord, GradeItem } from "../types";
-import { exportToExcel, exportToCSV, exportToPDF } from "../utils/exportUtils";
+import { exportToExcel, exportToCSV, exportToPDF, exportVisualToPDF } from "../utils/exportUtils";
 import { motion } from "motion/react";
 
 interface PenilaianViewProps {
@@ -399,7 +399,8 @@ max="100"
                 <span className="text-xxs font-mono text-white/40 uppercase w-full mb-0.5">Export Laporan:</span>
                 <button onClick={() => handleExport('xlsx')} className="flex-1 text-xxs font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> XLSX</button>
                 <button onClick={() => handleExport('csv')} className="flex-1 text-xxs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> CSV</button>
-                <button onClick={() => handleExport('pdf')} className="flex-1 text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+                <button onClick={() => handleExport('pdf')} className="flex-1 text-xxs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF Tabel</button>
+                <button onClick={() => exportVisualToPDF('grades-history-container', 'Laporan_Visual_Penilaian')} className="flex-1 text-xxs font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 py-1.5 rounded transition-colors flex items-center justify-center gap-1"><Download className="w-3 h-3" /> PDF Visual</button>
               </div>
             )}
           </div>

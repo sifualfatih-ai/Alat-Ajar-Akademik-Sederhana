@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import html2canvas from "html2canvas";
 
 export const exportToExcel = (data: any[], filename: string) => {
   const ws = XLSX.utils.json_to_sheet(data);
@@ -47,4 +48,27 @@ export const exportToPDF = (
   });
 
   doc.save(`${filename}.pdf`);
+};
+
+export const exportVisualToPDF = async (elementId: string, filename: string) => {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#0f172a'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`${filename}.pdf`);
+  } catch (err) {
+    console.error("Error generating PDF:", err);
+  }
 };

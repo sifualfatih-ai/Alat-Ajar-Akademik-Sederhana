@@ -69,20 +69,20 @@ export default function DashboardView({
   }, [attendanceRecords]);
 
   const averageGrades = useMemo(() => {
-    const subjectMap: Record<string, { total: number, count: number }> = {};
+    const classMap: Record<string, { total: number, count: number }> = {};
     gradeRecords.forEach(record => {
-      if (!subjectMap[record.subject]) subjectMap[record.subject] = { total: 0, count: 0 };
+      if (!classMap[record.classId]) classMap[record.classId] = { total: 0, count: 0 };
       
       record.grades.forEach(grade => {
         const avgGrade = (Number(grade.task1) + Number(grade.task2) + Number(grade.uts) + Number(grade.uas)) / 4;
-        subjectMap[record.subject].total += avgGrade;
-        subjectMap[record.subject].count += 1;
+        classMap[record.classId].total += avgGrade;
+        classMap[record.classId].count += 1;
       });
     });
     
-    return Object.keys(subjectMap).map(subject => ({
-      name: subject,
-      rataRata: Math.round(subjectMap[subject].total / subjectMap[subject].count)
+    return Object.keys(classMap).map(classId => ({
+      name: classId,
+      rataRata: Math.round(classMap[classId].total / classMap[classId].count)
     }));
   }, [gradeRecords]);
 
@@ -212,7 +212,7 @@ export default function DashboardView({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white font-sans tracking-tight">Rata-rata Nilai</h3>
-              <p className="text-xs text-white/50">Nilai rata-rata per mata pelajaran</p>
+              <p className="text-xs text-white/50">Nilai rata-rata per kelas</p>
             </div>
           </div>
           
