@@ -64,7 +64,7 @@ export default function DashboardView({
     
     return Object.keys(monthMap).map(m => ({
       name: m,
-      persentase: Math.round((monthMap[m].present / monthMap[m].total) * 100)
+      persentase: monthMap[m].total > 0 ? Math.round((monthMap[m].present / monthMap[m].total) * 100) : 0
     }));
   }, [attendanceRecords]);
 
@@ -82,7 +82,7 @@ export default function DashboardView({
     
     return Object.keys(classMap).map(classId => ({
       name: classId,
-      rataRata: Math.round(classMap[classId].total / classMap[classId].count)
+      rataRata: classMap[classId].count > 0 ? Math.round(classMap[classId].total / classMap[classId].count) : 0
     }));
   }, [gradeRecords]);
 
@@ -167,9 +167,9 @@ export default function DashboardView({
       </div>
 
       {/* Visualisasi Data Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="charts-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full min-w-0" id="charts-grid">
         <motion.div 
-          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg"
+          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg min-w-0"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-emerald-500/15 text-emerald-400 rounded-lg border border-emerald-500/20">
@@ -204,7 +204,7 @@ export default function DashboardView({
         </motion.div>
 
         <motion.div 
-          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg"
+          className="backdrop-blur-md bg-white/5 p-5 rounded-2xl border border-white/10 shadow-lg min-w-0"
         >
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 bg-purple-500/15 text-purple-400 rounded-lg border border-purple-500/20">

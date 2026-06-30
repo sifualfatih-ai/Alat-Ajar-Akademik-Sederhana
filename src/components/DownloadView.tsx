@@ -196,11 +196,11 @@ export default function DownloadView({
   const [selectedLegerClass, setSelectedLegerClass] = useState<string>(classes[0]?.id || "");
 
   const getLegerData = () => {
-    if (!selectedLegerClass) return [];
+    if (!selectedLegerClass) return { subjects: [], rows: [] };
     
     // Filter records for the selected class
     const classGradeRecords = gradeRecords.filter(r => r.classId === selectedLegerClass);
-    if (classGradeRecords.length === 0) return [];
+    if (classGradeRecords.length === 0) return { subjects: [], rows: [] };
 
     // Get all subjects evaluated
     const subjects = Array.from(new Set(classGradeRecords.map(r => r.subject)));
