@@ -48,7 +48,7 @@ export default function AdminView({ settings, onSaveSettings, onResetSettings }:
       const defaultSettings = {
         logo: "GURU DIGITAL INDONESIA",
         logoUrl: "",
-        schoolName: "PAUD PC Persis Coblong",
+        schoolName: "Sekolah Indonesia",
         teacherName: "Guru Indonensia",
         subject: "Pendidikan Agama",
         dashboardTitle: "Selamat Datang, Guru Indonensia",

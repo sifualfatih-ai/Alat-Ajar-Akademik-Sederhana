@@ -41,17 +41,43 @@ const SEEDED_CLASSES: ClassInfo[] = [];
 
 const SEEDED_SCHEDULE: ScheduleItem[] = [];
 
+// Safe localStorage wrapper to prevent crashes in mobile webviews
+const safeStorage = {
+  getItem: (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn("localStorage is not available", e);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn("localStorage is not available", e);
+    }
+  },
+  removeItem: (key: string) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn("localStorage is not available", e);
+    }
+  }
+};
+
 export default function App() {
   const [currentView, setCurrentView] = useState<string>("Dashboard");
   
   // Auth State
   const [authToken, setAuthToken] = useState<string | null>(() => {
-    return localStorage.getItem("sg_auth_token");
+    return safeStorage.getItem("sg_auth_token");
   });
 
   // School Profile Attr settings
   const [settings, setSettings] = useState<SchoolSettings>(() => {
-    const saved = localStorage.getItem("sg_school_settings");
+    const saved = safeStorage.getItem("sg_school_settings");
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -72,36 +98,36 @@ export default function App() {
   
   // App States
   const [students, setStudents] = useState<Student[]>(() => {
-    const saved = localStorage.getItem("sg_students");
-    return saved ? JSON.parse(saved) : SEEDED_STUDENTS;
+    const saved = safeStorage.getItem("sg_students");
+    try { return saved ? JSON.parse(saved) : SEEDED_STUDENTS; } catch(e){ return SEEDED_STUDENTS; }
   });
   const classes: ClassInfo[] = React.useMemo(() => {
     const uniqueClassIds = Array.from(new Set(students.map(s => s.classId).filter(Boolean))) as string[];
     return uniqueClassIds.map(id => ({ id, name: id, major: "Umum" })).sort((a, b) => a.name.localeCompare(b.name));
   }, [students]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>(() => {
-    const saved = localStorage.getItem("sg_schedule");
-    return saved ? JSON.parse(saved) : SEEDED_SCHEDULE;
+    const saved = safeStorage.getItem("sg_schedule");
+    try { return saved ? JSON.parse(saved) : SEEDED_SCHEDULE; } catch(e){ return SEEDED_SCHEDULE; }
   });
 
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
-    const saved = localStorage.getItem("sg_attendance");
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeStorage.getItem("sg_attendance");
+    try { return saved ? JSON.parse(saved) : []; } catch(e){ return []; }
   });
 
   const [gradeRecords, setGradeRecords] = useState<GradeRecord[]>(() => {
-    const saved = localStorage.getItem("sg_grades");
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeStorage.getItem("sg_grades");
+    try { return saved ? JSON.parse(saved) : []; } catch(e){ return []; }
   });
 
   const [agendaRecords, setAgendaRecords] = useState<AgendaRecord[]>(() => {
-    const saved = localStorage.getItem("sg_agendas");
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeStorage.getItem("sg_agendas");
+    try { return saved ? JSON.parse(saved) : []; } catch(e){ return []; }
   });
 
   const [bimbinganRecords, setBimbinganRecords] = useState<BimbinganRecord[]>(() => {
-    const saved = localStorage.getItem("sg_bimbingas");
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeStorage.getItem("sg_bimbingas");
+    try { return saved ? JSON.parse(saved) : []; } catch(e){ return []; }
   });
 
   // Connection & sync state with AppScript
@@ -109,7 +135,7 @@ export default function App() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [pendingSyncTasks, setPendingSyncTasks] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem("sg_pending_sync");
+      const saved = safeStorage.getItem("sg_pending_sync");
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -122,43 +148,43 @@ export default function App() {
 
   // Sync state variables across sessions
   useEffect(() => {
-    localStorage.setItem("sg_students", JSON.stringify(students));
+    safeStorage.setItem("sg_students", JSON.stringify(students));
   }, [students]);
 
   useEffect(() => {
-    localStorage.setItem("sg_schedule", JSON.stringify(schedule));
+    safeStorage.setItem("sg_schedule", JSON.stringify(schedule));
   }, [schedule]);
 
   useEffect(() => {
-    localStorage.setItem("sg_attendance", JSON.stringify(attendanceRecords));
+    safeStorage.setItem("sg_attendance", JSON.stringify(attendanceRecords));
   }, [attendanceRecords]);
 
   useEffect(() => {
-    localStorage.setItem("sg_grades", JSON.stringify(gradeRecords));
+    safeStorage.setItem("sg_grades", JSON.stringify(gradeRecords));
   }, [gradeRecords]);
 
   useEffect(() => {
-    localStorage.setItem("sg_agendas", JSON.stringify(agendaRecords));
+    safeStorage.setItem("sg_agendas", JSON.stringify(agendaRecords));
   }, [agendaRecords]);
 
   useEffect(() => {
-    localStorage.setItem("sg_bimbingas", JSON.stringify(bimbinganRecords));
+    safeStorage.setItem("sg_bimbingas", JSON.stringify(bimbinganRecords));
   }, [bimbinganRecords]);
 
   useEffect(() => {
     if (authToken) {
-      localStorage.setItem("sg_auth_token", authToken);
+      safeStorage.setItem("sg_auth_token", authToken);
     } else {
-      localStorage.removeItem("sg_auth_token");
+      safeStorage.removeItem("sg_auth_token");
     }
   }, [authToken]);
 
   useEffect(() => {
-    localStorage.setItem("sg_school_settings", JSON.stringify(settings));
+    safeStorage.setItem("sg_school_settings", JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem("sg_pending_sync", JSON.stringify(pendingSyncTasks));
+    safeStorage.setItem("sg_pending_sync", JSON.stringify(pendingSyncTasks));
   }, [pendingSyncTasks]);
 
   const handleProcessPendingSync = async (tasks: any[]) => {
@@ -168,9 +194,10 @@ export default function App() {
     
     for (const task of tasks) {
       try {
-        const res = await fetch("/api/appscript", {
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
+        const res = await fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({ 
             action: task.action, 
             data: task.payload,
@@ -199,7 +226,7 @@ export default function App() {
   useEffect(() => {
     const handleOnline = () => {
       setIsConnected(true);
-      const saved = localStorage.getItem("sg_pending_sync");
+      const saved = safeStorage.getItem("sg_pending_sync");
       if (saved) {
         try {
           const tasks = JSON.parse(saved);
@@ -237,9 +264,10 @@ export default function App() {
   useEffect(() => {
     const testConnection = async () => {
       try {
-        const res = await fetch("/api/appscript", {
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
+        const res = await fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({ action: "test" })
         });
         const parse = await res.json();
@@ -251,7 +279,7 @@ export default function App() {
     testConnection();
   }, []);
 
-  // Post Proxy forwarder to Google Apps Script
+  // Post forwarder directly to Google Apps Script (Bypassing Vercel missing API)
   const postToAppsScript = async (action: string, payload: any): Promise<any> => {
     if (!navigator.onLine) {
        setPendingSyncTasks(prev => [...prev, { action, payload, timestamp: Date.now() }]);
@@ -259,9 +287,11 @@ export default function App() {
     }
 
     try {
-      const res = await fetch("/api/appscript", {
+      // Direct call to the Apps Script URL since production is hosted statically (e.g. Vercel)
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxt9uNCBR-f_Bic5HqRGqNtFoEgfqhGwfYsGVDFgpolkziJZP3ar_DBM7uRryWaWzQamQ/exec";
+      const res = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // text/plain prevents CORS preflight
         body: JSON.stringify({ 
           action, 
           data: payload,
