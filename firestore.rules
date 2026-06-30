@@ -3,10 +3,15 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /app_metadata/stats {
       allow read: if true;
-      allow write: if true;
+      allow create: if request.resource.data.userCount == 0;
+      allow update: if request.auth != null && request.resource.data.userCount == resource.data.userCount + 1 && resource.data.userCount < 100;
     }
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId && (
+        !exists(/databases/$(database)/documents/app_metadata/stats) ||
+        get(/databases/$(database)/documents/app_metadata/stats).data.userCount < 100
+      );
       allow read: if request.auth != null && request.auth.token.email == "sitimulyati.alfatih@gmail.com";
     }
     match /attendance/{documentId} {

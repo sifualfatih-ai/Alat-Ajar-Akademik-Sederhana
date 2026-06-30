@@ -77,18 +77,23 @@ export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) 
         await updateProfile(user, { displayName: "User" });
         
         // Save user details to Firestore
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          whatsapp,
-          email,
-          role: "teacher",
-          createdAt: new Date().toISOString()
-        });
+        try {
+          await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            whatsapp,
+            email,
+            role: "teacher",
+            createdAt: new Date().toISOString()
+          });
 
-        // Increment total user count
-        await updateDoc(statsRef, {
-          userCount: increment(1)
-        });
+          // Increment total user count
+          await updateDoc(statsRef, {
+            userCount: increment(1)
+          });
+        } catch (dbErr: any) {
+          await user.delete();
+          throw dbErr;
+        }
 
         const token = await user.getIdToken();
         onLoginSuccess(token, {
@@ -97,7 +102,11 @@ export default function LoginView({ settings, onLoginSuccess }: LoginViewProps) 
           whatsapp
         });
       } catch (err: any) {
-        setError(err.message || "Pendaftaran gagal. Coba lagi.");
+        if (err.code === 'permission-denied' || err.message?.includes('permission')) {
+          setError("Pendaftaran ditutup: Kapasitas telah mencapai batas maksimum (100 pengguna).");
+        } else {
+          setError(err.message || "Pendaftaran gagal. Coba lagi.");
+        }
       } finally {
         setIsLoading(false);
       }
