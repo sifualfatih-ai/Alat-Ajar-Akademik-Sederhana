@@ -250,7 +250,7 @@ export default function LoginView({ settings, onLoginSuccess, postToAppsScript }
         </div>
         
         <div className="mt-8 text-center text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} {settings.schoolName}. Hak Cipta Dilindungi.</p>
+          <p>© {new Date().getFullYear()} Nafsflow. Hak Cipta Dilindungi.</p>
         </div>
       </div>
     </div>

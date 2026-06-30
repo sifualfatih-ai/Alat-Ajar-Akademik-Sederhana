@@ -61,7 +61,7 @@ export default function App() {
     }
     return {
       logo: "GURU DIGITAL INDONESIA",
-      schoolName: "PAUD PC Persis Coblong",
+      schoolName: "Sekolah Indonesia",
       teacherName: "Guru Indonensia",
       subject: "Pendidikan Agama",
       dashboardTitle: "Selamat Datang, Guru Indonensia",
@@ -510,7 +510,7 @@ export default function App() {
             onResetSettings={() => {
               setSettings({
                 logo: "GURU DIGITAL INDONESIA",
-                schoolName: "PAUD PC Persis Coblong",
+                schoolName: "Sekolah Indonesia",
                 teacherName: "Guru Indonensia",
                 subject: "Pendidikan Agama",
                 dashboardTitle: "Selamat Datang, Guru Indonensia",
